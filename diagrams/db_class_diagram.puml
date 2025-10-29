@@ -1,0 +1,50 @@
+@startuml
+' Diagrama de clases para la base de datos (Firestore) - marti_notas
+' Generado a partir de los modelos Dart: UserModel, TaskModel, NoteModel
+
+skinparam classAttributeIconSize 0
+
+class UserModel {
+  +String uid
+  +String email
+  +String name
+  +String role
+  +String? password
+  +DateTime createdAt
+  +DateTime? lastLogin
+}
+
+class TaskModel {
+  +String id
+  +String title
+  +String description
+  +DateTime dueDate
+  +String assignedTo   // FK -> UserModel.uid
+  +String createdBy    // FK -> UserModel.uid
+  +bool isPersonal
+  +String status
+  +DateTime createdAt
+  +DateTime? completedAt
+  +DateTime? confirmedAt
+  +String? confirmedBy // FK -> UserModel.uid (admin)
+  +bool isRead
+  +DateTime? readAt
+  +String? rejectionReason
+}
+
+class NoteModel {
+  +String id
+  +String title
+  +String content
+  +String createdBy   // FK -> UserModel.uid
+  +DateTime createdAt
+  +DateTime? updatedAt
+  +List<String> tags
+}
+
+' Relaciones (representación orientativa)
+UserModel "1" <|-- "*" TaskModel : createdBy / assignedTo
+UserModel "1" <|-- "*" NoteModel : createdBy
+TaskModel "*" o-- "0..1" UserModel : confirmedBy
+
+@enduml

@@ -1,0 +1,60 @@
+@startuml
+' Diagrama de flujo del proyecto marti_notas - Representa los principales flujos y llamadas a servicios
+
+start
+:App inicia (main.dart);
+:Inicializar Firebase y NotificationService.initialize();
+
+if (AuthService.authStateChanges -> usuario autenticado?) then (no)
+  :Mostrar LoginScreen;
+  :Usuario ingresa credenciales;
+  :AuthService.signInWithEmailAndPassword(email,password);
+  if (login OK?) then (si)
+    :AuthService.getCurrentUserProfile();
+    :UserService.updateLastLogin();
+    :NotificationService.setupLoginNotifications();
+    :ServerNotificationService.checkServerNotifications();
+    -> HomeScreen segun rol
+  else (no)
+    :Mostrar error de login;
+    stop
+  endif
+else (si)
+  :Cargar perfil desde UserService.getCurrentUser();
+  :NotificationService.setupLoginNotifications();
+  :ServerNotificationService.checkServerNotifications();
+  -> HomeScreen segun rol
+endif
+
+partition Home {
+  :Usuario ve lista de tareas (TaskService streams);
+  :Usuario puede iniciar tarea -> TaskService.startTask(taskId);
+  :Usuario completa tarea -> TaskService.completeTask(taskId);
+  note right
+    Cuando se completa:
+    - Se marca status = 'completed'
+    - Se notifica al creador/admin para confirmación
+  end note
+
+  :Admin revisa tareas pendientes (TaskService.getTasksNeedingConfirmation);
+  :Admin confirma tarea -> TaskService.confirmTask(taskId);
+  :Admin rechaza tarea -> TaskService.rejectTask(taskId,reason);
+}
+
+partition Notifications {
+  :NotificationService.scheduleTaskDueNotifications();
+  :NotificationService.scheduleDailyReminder();
+  :NotificationService.showNewTaskAssignedNotification(task);
+}
+
+partition Cleanup {
+  :TaskCleanupService.cleanupCompletedTasks() (cron o manual);
+  note right
+    - Busca tareas con status 'completed' > 24 horas
+    - Verifica permisos (creador/asignado/admin)
+    - Elimina en batch
+  end note
+}
+
+stop
+@enduml

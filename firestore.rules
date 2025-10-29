@@ -1,0 +1,85 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Reglas para la colección de usuarios
+    match /users/{userId} {
+      // Solo usuarios autenticados pueden leer/escribir su propio documento
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Los administradores pueden leer todos los usuarios
+      allow read: if request.auth != null && 
+                     exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      
+      // Permitir a los administradores crear usuarios
+      allow create: if request.auth != null && 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+                       
+      // Permitir a los administradores actualizar usuarios
+      allow update: if request.auth != null && 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+                       
+      // Permitir a los administradores eliminar usuarios
+      allow delete: if request.auth != null && 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Reglas para la colección de tareas
+    match /tasks/{taskId} {
+      // Los usuarios pueden leer tareas asignadas a ellos
+      allow read: if request.auth != null && 
+                     resource.data.assignedTo == request.auth.uid;
+      
+      // Los usuarios pueden actualizar el estado de sus tareas asignadas
+      allow update: if request.auth != null && 
+                       resource.data.assignedTo == request.auth.uid;
+      
+      // Permitir crear tareas PERSONALES (isPersonal == true)
+      allow create: if request.auth != null && 
+                       request.resource.data.assignedTo == request.auth.uid &&
+                       request.resource.data.isPersonal == true;
+      
+      // Permitir actualizar tareas PERSONALES propias
+      allow update: if request.auth != null && 
+                       resource.data.assignedTo == request.auth.uid &&
+                       resource.data.isPersonal == true;
+      
+      // Permitir eliminar tareas PERSONALES propias
+      allow delete: if request.auth != null && 
+                       resource.data.assignedTo == request.auth.uid &&
+                       resource.data.isPersonal == true;
+                        
+      // Los administradores pueden hacer todo con las tareas
+      allow read, write, create, update: if request.auth != null && 
+                                            exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                                            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      
+      // Permitir a los administradores eliminar tareas completadas después de 24h (cleanup service)
+      allow delete: if request.auth != null && 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' &&
+                       resource.data.status == 'completed';
+    }
+    
+    // Reglas para la colección de notas
+    match /notes/{noteId} {
+      // Los usuarios solo pueden acceder a sus propias notas
+      allow read, write: if request.auth != null && 
+                            resource.data.createdBy == request.auth.uid;
+      
+      // Permitir crear notas propias
+      allow create: if request.auth != null && 
+                       request.resource.data.createdBy == request.auth.uid;
+                       
+      // Los administradores pueden leer todas las notas (para estadísticas)
+      allow read, update, delete: if request.auth != null && 
+                     exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+  }
+}

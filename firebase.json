@@ -1,0 +1,30 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "notas-marti-75827",
+          "appId": "1:661137830460:android:47a0b0cf71ca9b0fe14939",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "notas-marti-75827",
+          "configurations": {
+            "android": "1:661137830460:android:47a0b0cf71ca9b0fe14939",
+            "ios": "1:661137830460:ios:6fc766a54d7b9aefe14939",
+            "macos": "1:661137830460:ios:6fc766a54d7b9aefe14939",
+            "web": "1:661137830460:web:e4e5a26c87b6ea8de14939"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "database": "(default)",
+    "location": "nam5",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}
