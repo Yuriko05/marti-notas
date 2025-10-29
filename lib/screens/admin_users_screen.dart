@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
+import 'unauthorized_screen.dart';
 import '../services/admin_service.dart';
 import 'admin_users/admin_users_header.dart';
 import 'admin_users/admin_users_stats.dart';
@@ -88,6 +89,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Guard: only admins may access this screen
+    if (!widget.currentUser.isAdmin) return const UnauthorizedScreen();
+
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       body: SafeArea(

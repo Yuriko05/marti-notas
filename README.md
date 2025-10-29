@@ -1,3 +1,55 @@
+# Mapa de archivos por rol — marti_notas
+
+Este documento lista los archivos principales del proyecto agrupados por rol (Admin / Usuario) y los componentes compartidos. Para cada archivo se indica una breve descripción y si representa el dashboard o una función auxiliar.
+
+## Estructura resumida
+
+| Archivo (ruta) | Rol | Qué hace | Tipo |
+|---|---:|---|---:|
+
+<!-- Admin: dashboard + herramientas -->
+| `lib/screens/home/home_admin_view.dart` | Admin | Dashboard principal para administradores — header, menú y accesos a las herramientas (Gestión de Usuarios, Asignación de Tareas, Reporting). | Dashboard |
+| `lib/screens/admin_users_screen.dart` | Admin | Gestión de usuarios: lista, búsqueda, filtros, CRUD (diálogos) y estadísticas. | Herramienta (CRUD) |
+| `lib/screens/admin_users/*` | Admin | Componentes de `admin_users_screen`: header, stats, search bar, list, dialogs, FAB. | Subcomponentes |
+| `lib/screens/admin_task_assign_screen.dart` | Admin | Pantalla para asignar tareas (estadísticas, lista, búsqueda, dialog para asignar). | Herramienta |
+| `lib/screens/admin_task_assign/*` | Admin | Componentes de `admin_task_assign_screen`: header, stats, list, search, FAB y diálogos. | Subcomponentes |
+| `lib/screens/admin_tasks_by_user_screen.dart` | Admin | Informe de tareas agrupadas por usuario: conteos y vista expandible por usuario; permite acciones (confirmar/rechazar). | Reporting |
+| `lib/screens/simple_task_assign_screen.dart` | Admin | Variante/refactor de la asignación de tareas (componentizada en `simple_task_assign/*`). | Herramienta |
+| `lib/services/admin_service.dart` | Admin (servicio) | Lógica para operaciones administrativas (crear/obtener/actualizar/eliminar usuarios, asignar tareas, stats). Contiene checks de rol. | Servicio (backend client) |
+
+<!-- Usuario: dashboard + herramientas personales -->
+| `lib/screens/home/home_user_view.dart` | Usuario | Dashboard principal para usuarios: bienvenida y accesos (Mis Tareas, Mis Notas). | Dashboard |
+| `lib/screens/tasks_screen.dart` | Usuario | Gestión de tareas personales: pestañas (pendientes, en progreso, completadas), creación/edición. | Herramienta (Tareas) |
+| `lib/screens/tasks/*` | Usuario | Componentes de `tasks_screen`: header, tabbar, list, modal, etc. | Subcomponentes |
+| `lib/screens/notes_screen.dart` | Usuario | Gestión de notas personales: lista, búsqueda, CRUD sobre notas filtradas por `createdBy`. | Herramienta (Notas) |
+| `lib/screens/simple_task_assign/*` | Usuario/Admin | Componentes usados por la pantalla `SimpleTaskAssignScreen` (mixta). | Subcomponentes |
+
+<!-- Compartido / Infra -->
+| `lib/screens/home_screen.dart` | Compartido | Punto de entrada después de auth: decide y renderiza `HomeAdminView` o `HomeUserView` según `UserModel.isAdmin`. | Router / Selector de dashboard |
+| `lib/models/user_model.dart` | Compartido | Modelo de usuario con campo `role` y getter `isAdmin`. Base para decisiones de UI/guards. | Modelo |
+| `lib/widgets/global_menu_drawer.dart` | Compartido | Drawer de navegación global: muestra items según rol (`user.isAdmin`). | Widget compartido |
+| `lib/widgets/status_badges.dart` | Compartido | Badges visuales de estado/rol (`AdminBadge`, `UserRoleBadge`). | UI auxiliar |
+| `lib/services/auth_service.dart` | Compartido (servicio) | Manejo de autenticación, `currentUser` y utilidades. | Servicio |
+| `lib/services/task_service.dart` | Compartido (servicio) | Operaciones sobre tareas (consulta, confirmación, rechazo). | Servicio |
+| `lib/services/note_service.dart` | Compartido (servicio) | Operaciones sobre notas. | Servicio |
+| `lib/services/notification_service.dart` | Compartido (servicio) | Inicialización y envío de notificaciones locales/servidor. | Servicio |
+
+## Notas importantes
+
+- La **seguridad real** debe implementarse en las reglas de Firestore (`firestore.rules`) y/o en funciones de backend. Los checks en `admin_service.dart` y los guards en pantallas son buenos para UX, pero no sustituyen las reglas del servidor.
+- Los archivos con sufijos `.bak` o `.backup` (por ejemplo `home_screen_old.dart.bak`) son copias/versiones antiguas: no se consideran parte activa del diseño actual.
+- He añadido guards en pantalla para impedir acceso UI por usuarios no-admin; sin embargo, revisa `firestore.rules` antes de desplegar.
+
+## Cómo usar este README
+
+- Para encontrar rápidamente un archivo, abre su ruta tal como aparece en la tabla.
+- Si quieres que genere un diagrama (PlantUML o Markdown + tabla extendida) con relaciones entre pantallas y servicios, dime y lo agrego.
+
+---
+
+Si quieres, genero también un archivo `DOCS/FILES_BY_ROLE.md` más extendido con ejemplos de flujo (login -> dashboard -> gestión) y enlaces a funciones claves en `lib/services`.
+
+Fecha: 29/10/2025
 # Marti Notas - Sistema de Gestión de Tareas y Notas
 
 ## 📱 **APLICACIÓN COMPLETAMENTE FUNCIONAL Y OPTIMIZADA** ✅

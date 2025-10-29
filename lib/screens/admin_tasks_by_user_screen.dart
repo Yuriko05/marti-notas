@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
+import 'unauthorized_screen.dart';
 import '../models/task_model.dart';
 import '../services/task_service.dart';
 import 'package:intl/intl.dart';
 import '../widgets/task_preview_dialog.dart';
 
 class AdminTasksByUserScreen extends StatefulWidget {
-  const AdminTasksByUserScreen({super.key});
+  final UserModel? currentUser;
+
+  const AdminTasksByUserScreen({super.key, this.currentUser});
 
   @override
   State<AdminTasksByUserScreen> createState() => _AdminTasksByUserScreenState();
@@ -44,6 +47,11 @@ class _AdminTasksByUserScreenState extends State<AdminTasksByUserScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Guard: only admins may access this screen
+    if (widget.currentUser == null || !widget.currentUser!.isAdmin) {
+      return const UnauthorizedScreen();
+    }
+
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(

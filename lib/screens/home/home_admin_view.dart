@@ -133,7 +133,7 @@ class HomeAdminView extends StatelessWidget {
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const AdminTasksByUserScreen(),
+              builder: (context) => AdminTasksByUserScreen(currentUser: user),
             ),
           ),
         ),

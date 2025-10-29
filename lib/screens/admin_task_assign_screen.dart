@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
+import 'unauthorized_screen.dart';
 import '../models/task_model.dart';
 import '../services/admin_service.dart';
 import '../services/task_cleanup_service.dart';
@@ -89,6 +90,9 @@ class _AdminTaskAssignScreenState extends State<AdminTaskAssignScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Guard: only admins may access this screen
+    if (!widget.currentUser.isAdmin) return const UnauthorizedScreen();
+
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(

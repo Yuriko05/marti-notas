@@ -150,7 +150,7 @@ class GlobalMenuDrawer extends StatelessWidget {
           Navigator.push(
               context,
               MaterialPageRoute(
-                  builder: (_) => const AdminTasksByUserScreen()));
+                  builder: (_) => AdminTasksByUserScreen(currentUser: user)));
         },
       ));
     }
