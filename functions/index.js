@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Cloud Functions para notificaciones push de tareas
  *
  * Funciones:
@@ -21,7 +21,7 @@ const logger = require("firebase-functions/logger");
 // Inicializar Firebase Admin
 initializeApp();
 
-// Helper: enviar mensaje a tokens con retries y limpieza de tokens inválidos
+// Helper: enviar mensaje a tokens con retries y limpieza de tokens invÃ¡lidos
 async function sendToTokensWithRetries(db, payload, tokens, userId) {
   const messaging = getMessaging();
   const maxAttempts = 3;
@@ -40,7 +40,7 @@ async function sendToTokensWithRetries(db, payload, tokens, userId) {
         const multi = Object.assign({}, payload, {tokens});
         const resp = await messaging.sendMulticast(multi);
 
-        // Eliminar tokens inválidos si los hay
+        // Eliminar tokens invÃ¡lidos si los hay
         const badTokens = [];
         resp.responses.forEach((r, idx) => {
           if (!r.success) {
@@ -57,7 +57,7 @@ async function sendToTokensWithRetries(db, payload, tokens, userId) {
               fcmTokens: FieldValue.arrayRemove(...badTokens),
             });
           } catch (e) {
-            logger.warn("Error eliminando tokens inválidos:", e);
+            logger.warn("Error eliminando tokens invÃ¡lidos:", e);
           }
         }
 
@@ -74,7 +74,7 @@ async function sendToTokensWithRetries(db, payload, tokens, userId) {
 
 /**
  * Cloud Function que escucha cuando se crea una nueva tarea
- * y envía una notificación push al usuario asignado
+ * y envÃ­a una notificaciÃ³n push al usuario asignado
  */
 exports.sendTaskAssignedNotification = onDocumentCreated(
     "tasks/{taskId}",
@@ -91,13 +91,13 @@ exports.sendTaskAssignedNotification = onDocumentCreated(
         const task = snapshot.data();
         logger.info("Nueva tarea creada:", {taskId, title: task.title});
 
-        // Solo enviar notificación para tareas asignadas (no personales)
+        // Solo enviar notificaciÃ³n para tareas asignadas (no personales)
         if (task.isPersonal) {
-          logger.info(`Tarea ${taskId} es personal, no se envía notificación`);
+          logger.info(`Tarea ${taskId} es personal, no se envÃ­a notificaciÃ³n`);
           return null;
         }
 
-        // Obtener información del usuario asignado
+        // Obtener informaciÃ³n del usuario asignado
         const db = getFirestore();
         const userDoc = await db.collection("users").doc(task.assignedTo).get();
 
@@ -107,7 +107,7 @@ exports.sendTaskAssignedNotification = onDocumentCreated(
         }
 
         const userData = userDoc.data();
-        // Soportamos fcmTokens (array) para múltiples dispositivos
+        // Soportamos fcmTokens (array) para mÃºltiples dispositivos
         const tokens = (userData && userData.fcmTokens && Array.isArray(userData.fcmTokens)) ?
           userData.fcmTokens : (userData && userData.fcmToken ? [userData.fcmToken] : []);
 
@@ -115,18 +115,18 @@ exports.sendTaskAssignedNotification = onDocumentCreated(
           logger.warn(`Usuario ${task.assignedTo} no tiene FCM tokens`);
           return null;
         }
-        // Obtener información del admin que asignó
+        // Obtener informaciÃ³n del admin que asignÃ³
         const adminDoc =
           await db.collection("users").doc(task.createdBy).get();
         const adminData = adminDoc.exists ? adminDoc.data() : null;
         const adminName =
           adminData && adminData.name ? adminData.name : "Admin";
 
-        // Construir el mensaje de notificación
+        // Construir el mensaje de notificaciÃ³n
         const messagePayload = {
           notification: {
-            title: "📋 Nueva Tarea Asignada",
-            body: `${adminName} te asignó: "${task.title}"`,
+            title: "ðŸ“‹ Nueva Tarea Asignada",
+            body: `${adminName} te asignÃ³: "${task.title}"`,
           },
           data: {
             taskId: taskId,
@@ -135,7 +135,7 @@ exports.sendTaskAssignedNotification = onDocumentCreated(
           },
         };
 
-        // Enviar la notificación (soportando múltiples tokens y retries)
+        // Enviar la notificaciÃ³n (soportando mÃºltiples tokens y retries)
         const messaging = getMessaging();
         const sendWithRetries = async (payload, targetTokens) => {
           const maxAttempts = 3;
@@ -156,7 +156,7 @@ exports.sendTaskAssignedNotification = onDocumentCreated(
             } catch (err) {
               lastError = err;
               attempt++;
-              logger.warn(`Intento ${attempt} falló al enviar notificación: ${err}`);
+              logger.warn(`Intento ${attempt} fallÃ³ al enviar notificaciÃ³n: ${err}`);
               // Espera exponencial antes de reintentar
               await new Promise((r) => setTimeout(r, 500 * Math.pow(2, attempt)));
             }
@@ -165,25 +165,25 @@ exports.sendTaskAssignedNotification = onDocumentCreated(
           return {success: false, error: lastError};
         };
 
-        // Usar helper que hace retries y limpieza de tokens inválidos
+        // Usar helper que hace retries y limpieza de tokens invÃ¡lidos
         const result = await sendToTokensWithRetries(db, messagePayload, tokens, task.assignedTo);
 
         if (!result.success) {
-          logger.error("❌ No se pudo enviar la notificación después de reintentos:", result.error);
+          logger.error("âŒ No se pudo enviar la notificaciÃ³n despuÃ©s de reintentos:", result.error);
           return null;
         }
 
-        logger.info("✅ Notificación enviada exitosamente (multicast/uno)");
+        logger.info("âœ… NotificaciÃ³n enviada exitosamente (multicast/uno)");
         return result.response;
       } catch (error) {
-        logger.error("❌ Error enviando notificación:", error);
+        logger.error("âŒ Error enviando notificaciÃ³n:", error);
         return null;
       }
     },
 );
 
 /**
- * Cloud Function para enviar notificación cuando una tarea es rechazada
+ * Cloud Function para enviar notificaciÃ³n cuando una tarea es rechazada
  */
 exports.sendTaskRejectedNotification = onDocumentUpdated(
     "tasks/{taskId}",
@@ -208,7 +208,7 @@ exports.sendTaskRejectedNotification = onDocumentUpdated(
         const before = beforeSnapshot.data();
         const after = afterSnapshot.data();
 
-        // Verificar si el estado cambió a 'rejected'
+        // Verificar si el estado cambiÃ³ a 'rejected'
         if (before.status !== "rejected" && after.status === "rejected") {
           logger.info(`Tarea ${taskId} fue rechazada`);
 
@@ -234,7 +234,7 @@ exports.sendTaskRejectedNotification = onDocumentUpdated(
           // Construir mensaje
           const messagePayload = {
             notification: {
-              title: "❌ Tarea Rechazada",
+              title: "âŒ Tarea Rechazada",
               body: `La tarea "${after.title}" fue rechazada`,
             },
             data: {
@@ -246,24 +246,24 @@ exports.sendTaskRejectedNotification = onDocumentUpdated(
 
           const result = await sendToTokensWithRetries(db, messagePayload, tokens, after.assignedTo);
           if (!result.success) {
-            logger.error("❌ No se pudo enviar la notificación de rechazo:", result.error);
+            logger.error("âŒ No se pudo enviar la notificaciÃ³n de rechazo:", result.error);
             return null;
           }
 
-          logger.info(`✅ Notificación de rechazo enviada`);
+          logger.info(`âœ… NotificaciÃ³n de rechazo enviada`);
           return result.response;
         }
 
         return null;
       } catch (error) {
-        logger.error("❌ Error enviando notificación de rechazo:", error);
+        logger.error("âŒ Error enviando notificaciÃ³n de rechazo:", error);
         return null;
       }
     },
 );
 
 /**
- * Cloud Function para enviar notificación cuando una tarea es aprobada
+ * Cloud Function para enviar notificaciÃ³n cuando una tarea es aprobada
  */
 exports.sendTaskApprovedNotification = onDocumentUpdated(
     "tasks/{taskId}",
@@ -281,7 +281,7 @@ exports.sendTaskApprovedNotification = onDocumentUpdated(
         const before = beforeSnapshot.data();
         const after = afterSnapshot.data();
 
-        // Verificar si el estado cambió a 'confirmed'
+        // Verificar si el estado cambiÃ³ a 'confirmed'
         if (before.status !== "confirmed" && after.status === "confirmed") {
           logger.info(`Tarea ${taskId} fue aprobada`);
 
@@ -306,7 +306,7 @@ exports.sendTaskApprovedNotification = onDocumentUpdated(
 
           const messagePayload = {
             notification: {
-              title: "✅ Tarea Aprobada",
+              title: "âœ… Tarea Aprobada",
               body: `La tarea "${after.title}" fue aprobada por el admin`,
             },
             data: {
@@ -318,17 +318,17 @@ exports.sendTaskApprovedNotification = onDocumentUpdated(
 
           const result = await sendToTokensWithRetries(db, messagePayload, tokens, after.assignedTo);
           if (!result.success) {
-            logger.error("❌ No se pudo enviar la notificación de aprobación:", result.error);
+            logger.error("âŒ No se pudo enviar la notificaciÃ³n de aprobaciÃ³n:", result.error);
             return null;
           }
 
-          logger.info(`✅ Notificación de aprobación enviada`);
+          logger.info(`âœ… NotificaciÃ³n de aprobaciÃ³n enviada`);
           return result.response;
         }
 
         return null;
       } catch (error) {
-        logger.error("❌ Error enviando notificación de aprobación:", error);
+        logger.error("âŒ Error enviando notificaciÃ³n de aprobaciÃ³n:", error);
         return null;
       }
     },
@@ -336,11 +336,11 @@ exports.sendTaskApprovedNotification = onDocumentUpdated(
 
 /**
  * Cloud Function HTTPS Callable
- * Crear usuarios sin cerrar sesión del admin
+ * Crear usuarios sin cerrar sesiÃ³n del admin
  *
- * Parámetros:
+ * ParÃ¡metros:
  * - name: Nombre del usuario
- * - password: Contraseña del usuario
+ * - password: ContraseÃ±a del usuario
  * - role: Rol del usuario ('normal' o 'admin')
  *
  * Retorna:
@@ -349,7 +349,7 @@ exports.sendTaskApprovedNotification = onDocumentUpdated(
  */
 exports.createUser = onCall(async (request) => {
   try {
-    // 1. Verificar que el usuario está autenticado
+    // 1. Verificar que el usuario estÃ¡ autenticado
     if (!request.auth) {
       throw new HttpsError(
           "unauthenticated",
@@ -358,7 +358,7 @@ exports.createUser = onCall(async (request) => {
     }
 
     const callerId = request.auth.uid;
-    logger.info(`👤 Usuario ${callerId} solicitando crear nuevo usuario`);
+    logger.info(`ðŸ‘¤ Usuario ${callerId} solicitando crear nuevo usuario`);
 
     // 2. Verificar que el usuario que llama es admin
     const db = getFirestore();
@@ -371,7 +371,7 @@ exports.createUser = onCall(async (request) => {
       );
     }
 
-    // 3. Validar parámetros
+    // 3. Validar parÃ¡metros
     const {name, password, role} = request.data;
 
     if (!name || typeof name !== "string" || name.trim().length === 0) {
@@ -381,7 +381,7 @@ exports.createUser = onCall(async (request) => {
     if (!password || typeof password !== "string" || password.length < 6) {
       throw new HttpsError(
           "invalid-argument",
-          "La contraseña debe tener al menos 6 caracteres",
+          "La contraseÃ±a debe tener al menos 6 caracteres",
       );
     }
 
@@ -394,7 +394,7 @@ exports.createUser = onCall(async (request) => {
 
     const trimmedName = name.trim();
 
-    // 4. Verificar que el nombre no esté en uso
+    // 4. Verificar que el nombre no estÃ© en uso
     const existingUserQuery = await db
         .collection("users")
         .where("name", "==", trimmedName)
@@ -411,7 +411,7 @@ exports.createUser = onCall(async (request) => {
     // 5. Generar email fake
     const normalizedName = trimmedName.toLowerCase().replace(/\s+/g, "");
     const fakeEmail = `${normalizedName}@gmail.com`;
-    logger.info(`📧 Email generado: ${fakeEmail}`);
+    logger.info(`ðŸ“§ Email generado: ${fakeEmail}`);
 
     // 6. Crear usuario en Firebase Authentication usando Admin SDK
     const auth = getAuth();
@@ -421,7 +421,7 @@ exports.createUser = onCall(async (request) => {
       displayName: trimmedName,
     });
 
-    logger.info(`✅ Usuario creado en Auth: ${userRecord.uid}`);
+    logger.info(`âœ… Usuario creado en Auth: ${userRecord.uid}`);
 
     // 7. Crear perfil en Firestore
     const now = new Date();
@@ -434,16 +434,16 @@ exports.createUser = onCall(async (request) => {
       hasPassword: true,
       createdAt: now,
       lastLogin: now,
-      // Soportamos múltiples tokens por usuario
+      // Soportamos mÃºltiples tokens por usuario
       fcmTokens: [],
       fcmTokensUpdatedAt: null,
     };
 
     await db.collection("users").doc(userRecord.uid).set(userProfile);
 
-    logger.info(`✅ Perfil creado en Firestore para: ${trimmedName}`);
+    logger.info(`âœ… Perfil creado en Firestore para: ${trimmedName}`);
 
-    // 8. Retornar información del usuario creado
+    // 8. Retornar informaciÃ³n del usuario creado
     return {
       success: true,
       uid: userRecord.uid,
@@ -453,22 +453,22 @@ exports.createUser = onCall(async (request) => {
       message: `Usuario ${trimmedName} creado exitosamente`,
     };
   } catch (error) {
-    logger.error("❌ Error creando usuario:", error);
+    logger.error("âŒ Error creando usuario:", error);
 
     // Si el error ya es un HttpsError, re-lanzarlo
     if (error instanceof HttpsError) {
       throw error;
     }
 
-    // Manejar errores específicos de Firebase Auth
+    // Manejar errores especÃ­ficos de Firebase Auth
     if (error.code === "auth/email-already-exists") {
       throw new HttpsError(
           "already-exists",
-          "El email ya está en uso",
+          "El email ya estÃ¡ en uso",
       );
     }
 
-    // Error genérico
+    // Error genÃ©rico
     throw new HttpsError(
         "internal",
         `Error al crear usuario: ${error.message}`,
@@ -476,7 +476,7 @@ exports.createUser = onCall(async (request) => {
   }
 });
 
-// 🔄 Notificación de reasignación de tarea
+// ðŸ”„ NotificaciÃ³n de reasignaciÃ³n de tarea
 exports.sendTaskReassignedNotification = onDocumentUpdated(
     "tasks/{taskId}",
     async (event) => {
@@ -484,7 +484,7 @@ exports.sendTaskReassignedNotification = onDocumentUpdated(
       const after = event.data.after.data();
       if (!before || !after) return null;
 
-      // Detectar cambio de asignación
+      // Detectar cambio de asignaciÃ³n
       if (before.assignedTo !== after.assignedTo) {
         const db = getFirestore();
         logger.info("sendTaskReassignedNotification invoked", {
@@ -512,8 +512,8 @@ exports.sendTaskReassignedNotification = onDocumentUpdated(
 
           const payload = {
             notification: {
-              title: "📋 Tarea reasignada",
-              body: `${adminName} te reasignó la tarea "${after.title}"`,
+              title: "ðŸ“‹ Tarea reasignada",
+              body: `${adminName} te reasignÃ³ la tarea "${after.title}"`,
             },
             data: {
               taskId: event.params.taskId,
@@ -532,7 +532,7 @@ exports.sendTaskReassignedNotification = onDocumentUpdated(
     },
 );
 
-// 📥 Notificación de envío a revisión (usuario → admin)
+// ðŸ“¥ NotificaciÃ³n de envÃ­o a revisiÃ³n (usuario â†’ admin)
 exports.sendTaskReviewSubmittedNotification = onDocumentUpdated(
     "tasks/{taskId}",
     async (event) => {
@@ -570,8 +570,8 @@ exports.sendTaskReviewSubmittedNotification = onDocumentUpdated(
           const userName = (userData && userData.name) ? userData.name : "Un usuario";
           const payload = {
             notification: {
-              title: "📥 Tarea enviada para revisión",
-              body: `${userName} envió la tarea "${after.title}" para revisión`,
+              title: "ðŸ“¥ Tarea enviada para revisiÃ³n",
+              body: `${userName} enviÃ³ la tarea "${after.title}" para revisiÃ³n`,
             },
             data: {
               taskId: event.params.taskId,
@@ -589,7 +589,7 @@ exports.sendTaskReviewSubmittedNotification = onDocumentUpdated(
     },
 );
 
-// ✅ Notificación de aprobación tras revisión
+// âœ… NotificaciÃ³n de aprobaciÃ³n tras revisiÃ³n
 exports.sendTaskReviewApprovedNotification = onDocumentUpdated(
     "tasks/{taskId}",
     async (event) => {
@@ -619,7 +619,7 @@ exports.sendTaskReviewApprovedNotification = onDocumentUpdated(
 
           const payload = {
             notification: {
-              title: "✅ Tarea aprobada",
+              title: "âœ… Tarea aprobada",
               body: `Tu tarea "${after.title}" fue aprobada por el admin`,
             },
             data: {
@@ -638,7 +638,7 @@ exports.sendTaskReviewApprovedNotification = onDocumentUpdated(
     },
 );
 
-// ❌ Notificación de rechazo en revisión
+// âŒ NotificaciÃ³n de rechazo en revisiÃ³n
 exports.sendTaskReviewRejectedNotification = onDocumentUpdated(
     "tasks/{taskId}",
     async (event) => {
@@ -668,7 +668,7 @@ exports.sendTaskReviewRejectedNotification = onDocumentUpdated(
 
           const payload = {
             notification: {
-              title: "❌ Revisión rechazada",
+              title: "âŒ RevisiÃ³n rechazada",
               body: `Tu tarea "${after.title}" fue rechazada; revisa los comentarios del admin`,
             },
             data: {
@@ -687,7 +687,7 @@ exports.sendTaskReviewRejectedNotification = onDocumentUpdated(
     },
 );
 
-// 🔒 Función para garantizar tokens únicos entre usuarios
+// ðŸ”’ FunciÃ³n para garantizar tokens Ãºnicos entre usuarios
 exports.ensureUniqueFcmTokens = onDocumentUpdated(
     "users/{userId}",
     async (event) => {
