@@ -64,7 +64,7 @@ class AdminUsersList extends StatelessWidget {
                       fontSize: 12, fontWeight: FontWeight.w500),
                 ),
                 Text(
-                  'Contraseña: ${user.password ?? 'No disponible'}',
+                  'Contraseña: ${user.hasPassword ? 'Sí' : 'No'}',
                   style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ],

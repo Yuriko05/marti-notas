@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 /// Repositorio para la comunicación con Firebase Authentication
@@ -175,8 +176,16 @@ class AuthRepository {
   /// Comprobar si existe un usuario con el email proporcionado
   Future<bool> checkIfUserExists(String email) async {
     try {
-      final methods = await _auth.fetchSignInMethodsForEmail(email);
-      return methods.isNotEmpty;
+      // fetchSignInMethodsForEmail fue deprecado en firebase_auth v6+
+      // Alternativa: intentar crear cuenta temporal o verificar en Firestore
+      // Por simplicidad, verificamos directamente en Firestore
+      final userQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+      
+      return userQuery.docs.isNotEmpty;
     } catch (e) {
       debugPrint('AuthRepository: Error al verificar existencia de usuario: $e');
       return false;
@@ -185,7 +194,7 @@ class AuthRepository {
 
   /// Generar correo fake basado en el nombre del usuario
   String generateFakeEmail(String name) {
-    const String fakeDomain = '@app.local';
+    const String fakeDomain = '@gmail.com';
     
     // Limpiar el nombre: minúsculas, sin espacios, caracteres especiales
     String cleanName = name

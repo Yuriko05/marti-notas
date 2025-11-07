@@ -8,12 +8,16 @@ class TaskList extends StatelessWidget {
   final String userId;
   final String status;
   final Animation<double> fadeAnimation;
+  final String searchQuery;
+  final String priorityFilter;
 
   const TaskList({
     super.key,
     required this.userId,
     required this.status,
     required this.fadeAnimation,
+    this.searchQuery = '',
+    this.priorityFilter = 'all',
   });
 
   @override
@@ -46,8 +50,28 @@ class TaskList extends StatelessWidget {
           }
 
           final tasks = snapshot.data ?? [];
+          
+          // Aplicar filtros
+          final filteredTasks = tasks.where((task) {
+            // Filtro de búsqueda
+            final matchesSearch = searchQuery.isEmpty ||
+                task.title.toLowerCase().contains(searchQuery.toLowerCase()) ||
+                task.description.toLowerCase().contains(searchQuery.toLowerCase());
+            
+            // Filtro de prioridad (si existe el campo en el modelo)
+            final matchesPriority = priorityFilter == 'all';
+            // TODO: Implementar filtro de prioridad cuando se agregue al modelo
+            
+            return matchesSearch && matchesPriority;
+          }).toList();
+          
+          // Mostrar primero las tareas asignadas por admin (isPersonal == false),
+          // y después las personales.
+          final adminTasks = filteredTasks.where((t) => !t.isPersonal).toList();
+          final personalTasks = filteredTasks.where((t) => t.isPersonal).toList();
+          final orderedTasks = [...adminTasks, ...personalTasks];
 
-          if (tasks.isEmpty) {
+          if (orderedTasks.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -59,7 +83,9 @@ class TaskList extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    _getEmptyMessageForStatus(status),
+                    searchQuery.isNotEmpty
+                        ? 'No se encontraron tareas'
+                        : _getEmptyMessageForStatus(status),
                     style: TextStyle(
                       fontSize: 16,
                       color: Colors.grey.shade600,
@@ -72,9 +98,9 @@ class TaskList extends StatelessWidget {
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),
-            itemCount: tasks.length,
+            itemCount: orderedTasks.length,
             itemBuilder: (context, index) {
-              return _buildTaskCard(context, tasks[index]);
+              return _buildTaskCard(context, orderedTasks[index]);
             },
           );
         },
@@ -196,35 +222,36 @@ class TaskList extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  if (task.isPersonal)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.person,
-                            size: 12,
-                            color: Colors.blue.shade700,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Personal',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.blue.shade700,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
+                  // Etiqueta: si la tarea fue asignada por admin mostrar 'Admin',
+                  // si es personal mostrar 'Personal'.
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
                     ),
+                    decoration: BoxDecoration(
+                      color: task.isPersonal ? Colors.blue.shade50 : Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          task.isPersonal ? Icons.person : Icons.admin_panel_settings,
+                          size: 12,
+                          color: task.isPersonal ? Colors.blue.shade700 : Colors.orange.shade700,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          task.isPersonal ? 'Personal' : 'Admin',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: task.isPersonal ? Colors.blue.shade700 : Colors.orange.shade700,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ],

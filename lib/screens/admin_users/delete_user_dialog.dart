@@ -235,8 +235,7 @@ class _DeleteUserDialogState extends State<DeleteUserDialog> {
                   'Nombre: ${widget.user.name}',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                if (widget.user.password != null)
-                  Text('Contraseña: ${widget.user.password}'),
+                Text('Contraseña: ${widget.user.hasPassword ? 'Sí' : 'No'}'),
                 Text(
                     'Rol: ${widget.user.isAdmin ? 'Administrador' : 'Usuario'}'),
               ],

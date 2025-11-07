@@ -3,19 +3,20 @@
     "platforms": {
       "android": {
         "default": {
-          "projectId": "notas-marti-75827",
-          "appId": "1:661137830460:android:47a0b0cf71ca9b0fe14939",
+          "projectId": "app-notas-3d555",
+          "appId": "1:840977230887:android:da10f9906a9c699e7b7202",
           "fileOutput": "android/app/google-services.json"
         }
       },
       "dart": {
         "lib/firebase_options.dart": {
-          "projectId": "notas-marti-75827",
+          "projectId": "app-notas-3d555",
           "configurations": {
-            "android": "1:661137830460:android:47a0b0cf71ca9b0fe14939",
-            "ios": "1:661137830460:ios:6fc766a54d7b9aefe14939",
-            "macos": "1:661137830460:ios:6fc766a54d7b9aefe14939",
-            "web": "1:661137830460:web:e4e5a26c87b6ea8de14939"
+            "android": "1:840977230887:android:da10f9906a9c699e7b7202",
+            "ios": "1:840977230887:ios:d86913c7dd346bb77b7202",
+            "macos": "1:840977230887:ios:d86913c7dd346bb77b7202",
+            "web": "1:840977230887:web:24a239718e71eaab7b7202",
+            "windows": "1:840977230887:web:548674dfb2764e0b7b7202"
           }
         }
       }
@@ -26,5 +27,24 @@
     "location": "nam5",
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
-  }
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint"
+      ]
+    }
+  ]
 }

@@ -1,2 +1,0 @@
-///mano quiero una funcion que muestre en el dashboard del administrador mas concretamente en la seccion de gestion de tareas 
-/// que si te das cuenta en el codigo las tareas se puede habrir y pasar de estados  y otra funcion que cuando el usuario 

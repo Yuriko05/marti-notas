@@ -27,10 +27,7 @@ class DefaultFirebaseOptions {
       case TargetPlatform.macOS:
         return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -44,37 +41,47 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBzYXwbrl8E8As2iUYTsQc7I3WgRWYBPIk',
-    appId: '1:661137830460:web:e4e5a26c87b6ea8de14939',
-    messagingSenderId: '661137830460',
-    projectId: 'notas-marti-75827',
-    authDomain: 'notas-marti-75827.firebaseapp.com',
-    storageBucket: 'notas-marti-75827.firebasestorage.app',
+    apiKey: 'AIzaSyAGazsDLo6VJeXNag08o3hpQZOHk33jpg4',
+    appId: '1:840977230887:web:24a239718e71eaab7b7202',
+    messagingSenderId: '840977230887',
+    projectId: 'app-notas-3d555',
+    authDomain: 'app-notas-3d555.firebaseapp.com',
+    storageBucket: 'app-notas-3d555.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAfKBW2BVzQBTOSYdySgVUx4Q4k9wpoCjY',
-    appId: '1:661137830460:android:47a0b0cf71ca9b0fe14939',
-    messagingSenderId: '661137830460',
-    projectId: 'notas-marti-75827',
-    storageBucket: 'notas-marti-75827.firebasestorage.app',
+    apiKey: 'AIzaSyBQfntMQubEaWJhTAWw0Y-0uvPuB_BmpOw',
+    appId: '1:840977230887:android:da10f9906a9c699e7b7202',
+    messagingSenderId: '840977230887',
+    projectId: 'app-notas-3d555',
+    storageBucket: 'app-notas-3d555.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCW9GoB1Jl7zZSYfCsURcYdD_O5ulvCeWk',
-    appId: '1:661137830460:ios:6fc766a54d7b9aefe14939',
-    messagingSenderId: '661137830460',
-    projectId: 'notas-marti-75827',
-    storageBucket: 'notas-marti-75827.firebasestorage.app',
+    apiKey: 'AIzaSyC_Tf24tJ9U86CSqwNQmhQUgFVOzmmIQVk',
+    appId: '1:840977230887:ios:d86913c7dd346bb77b7202',
+    messagingSenderId: '840977230887',
+    projectId: 'app-notas-3d555',
+    storageBucket: 'app-notas-3d555.firebasestorage.app',
     iosBundleId: 'com.example.martiNotas',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyCW9GoB1Jl7zZSYfCsURcYdD_O5ulvCeWk',
-    appId: '1:661137830460:ios:6fc766a54d7b9aefe14939',
-    messagingSenderId: '661137830460',
-    projectId: 'notas-marti-75827',
-    storageBucket: 'notas-marti-75827.firebasestorage.app',
+    apiKey: 'AIzaSyC_Tf24tJ9U86CSqwNQmhQUgFVOzmmIQVk',
+    appId: '1:840977230887:ios:d86913c7dd346bb77b7202',
+    messagingSenderId: '840977230887',
+    projectId: 'app-notas-3d555',
+    storageBucket: 'app-notas-3d555.firebasestorage.app',
     iosBundleId: 'com.example.martiNotas',
   );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyAGazsDLo6VJeXNag08o3hpQZOHk33jpg4',
+    appId: '1:840977230887:web:548674dfb2764e0b7b7202',
+    messagingSenderId: '840977230887',
+    projectId: 'app-notas-3d555',
+    authDomain: 'app-notas-3d555.firebaseapp.com',
+    storageBucket: 'app-notas-3d555.firebasestorage.app',
+  );
+
 }

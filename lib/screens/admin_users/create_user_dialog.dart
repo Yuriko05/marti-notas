@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../services/admin_service.dart';
-import '../../services/auth_service.dart';
 
 /// Diálogo para crear nuevo usuario
 class CreateUserDialog extends StatefulWidget {
@@ -35,7 +34,7 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
 
     setState(() => isLoading = true);
 
-    final success = await AdminService.createUser(
+    final result = await AdminService.createUser(
       password: passwordController.text,
       name: nameController.text.trim(),
       role: selectedRole,
@@ -45,15 +44,15 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
 
     if (!mounted) return;
 
-    if (success != null) {
+    if (result != null && result['success'] == true) {
       Navigator.pop(context);
-      _showSuccessDialog();
+      _showSuccessDialog(result);
     } else {
-      _showErrorMessage();
+      _showErrorMessage(result?['message'] ?? 'Error desconocido');
     }
   }
 
-  void _showSuccessDialog() {
+  void _showSuccessDialog(Map<String, dynamic> userData) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -86,7 +85,7 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('✅ Usuario creado exitosamente en el sistema'),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -97,42 +96,46 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Nombre: ${nameController.text.trim()}',
+                    'Nombre: ${userData['name']}',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
+                  const SizedBox(height: 4),
                   Text(
-                      'Rol: ${selectedRole == 'admin' ? 'Administrador' : 'Usuario Normal'}'),
+                    'Email: ${userData['email']}',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Rol: ${userData['role'] == 'admin' ? 'Administrador' : 'Usuario Normal'}',
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'UID: ${userData['uid']}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.orange.shade50,
+                color: Colors.green.shade50,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.shade300),
+                border: Border.all(color: Colors.green.shade300),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      Icon(Icons.info, color: Colors.orange.shade700, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Importante',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange.shade700,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Debido a limitaciones de seguridad, tu sesión de administrador se ha cerrado. Necesitarás volver a iniciar sesión.',
-                    style: TextStyle(fontSize: 14),
+                  Icon(Icons.check_circle, color: Colors.green.shade700, size: 20),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Tu sesión de admin sigue activa. No necesitas volver a iniciar sesión.',
+                      style: TextStyle(fontSize: 13),
+                    ),
                   ),
                 ],
               ),
@@ -142,26 +145,27 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
         actions: [
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade600,
+              backgroundColor: Colors.green.shade600,
               foregroundColor: Colors.white,
             ),
             onPressed: () {
               Navigator.pop(context);
-              AuthService.signOut();
+              widget.onUserCreated();
             },
-            child: const Text('Entendido - Volver al Login'),
+            child: const Text('Continuar'),
           ),
         ],
       ),
     );
   }
 
-  void _showErrorMessage() {
+  void _showErrorMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Error al crear usuario'),
+        content: Text('Error al crear usuario: $message'),
         backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 5),
       ),
     );
   }

@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/task_model.dart';
 import '../models/user_model.dart';
 import '../utils/logger.dart';
+import 'history_service.dart';
+import 'notification_service.dart';
 
 class TaskService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -14,13 +16,49 @@ class TaskService {
       final user = _auth.currentUser;
       if (user == null) return false;
 
-      await _firestore.collection('tasks').doc(taskId).update({
+      final taskRef = _firestore.collection('tasks').doc(taskId);
+
+      // Obtener estado previo
+      final prevSnap = await taskRef.get();
+      final prevData = prevSnap.exists ? prevSnap.data() : null;
+
+      await taskRef.update({
         'isRead': true,
         'readAt': FieldValue.serverTimestamp(),
+        'readBy': user.uid,
       });
 
-      AppLogger.success('Tarea $taskId marcada como leída',
-          name: 'TaskService');
+      // Obtener estado posterior
+      final afterSnap = await taskRef.get();
+      final afterData = afterSnap.exists ? afterSnap.data() : null;
+
+      // Obtener role del actor si existe
+      String? actorRole;
+      try {
+        final actorDoc = await _firestore.collection('users').doc(user.uid).get();
+        final actorData = actorDoc.exists ? actorDoc.data() : null;
+        actorRole = actorData != null ? (actorData['role'] as String?) : null;
+      } catch (_) {
+        actorRole = null;
+      }
+
+      // Registrar evento de history
+      try {
+        await HistoryService.recordEvent(
+          taskId: taskId,
+          action: 'read',
+          actorUid: user.uid,
+          actorRole: actorRole,
+          payload: {
+            'before': prevData,
+            'after': afterData,
+          },
+        );
+      } catch (e) {
+        AppLogger.warning('No se pudo escribir history para read: $e', name: 'TaskService');
+      }
+
+      AppLogger.success('Tarea $taskId marcada como leída', name: 'TaskService');
       return true;
     } catch (e) {
       AppLogger.error('Error marcando tarea como leída',
@@ -43,14 +81,34 @@ class TaskService {
         return false;
       }
 
-      await _firestore.collection('tasks').doc(taskId).update({
+      final taskRef = _firestore.collection('tasks').doc(taskId);
+
+      // Obtener previo
+      final prevSnap = await taskRef.get();
+      final prevData = prevSnap.exists ? prevSnap.data() : null;
+
+      await taskRef.update({
         'status': 'confirmed',
         'confirmedAt': FieldValue.serverTimestamp(),
         'confirmedBy': user.uid,
       });
 
-      AppLogger.success('Tarea $taskId confirmada por admin',
-          name: 'TaskService');
+      final afterSnap = await taskRef.get();
+      final afterData = afterSnap.exists ? afterSnap.data() : null;
+
+      await HistoryService.recordEvent(
+        taskId: taskId,
+        action: 'confirm',
+        actorUid: user.uid,
+        actorRole: userDoc.data()?['role'] as String?,
+        payload: {'before': prevData, 'after': afterData, 'notes': notes},
+      );
+
+      // 🔔 NO enviar notificación local aquí
+      // Las notificaciones push se envían automáticamente por Cloud Function
+      // (sendTaskApprovedNotification se activa cuando status cambia a 'confirmed')
+
+      AppLogger.success('Tarea $taskId confirmada por admin', name: 'TaskService');
       return true;
     } catch (e) {
       AppLogger.error('Error confirmando tarea', error: e, name: 'TaskService');
@@ -72,17 +130,136 @@ class TaskService {
         return false;
       }
 
-      await _firestore.collection('tasks').doc(taskId).update({
-        'status': 'pending', // Vuelve a pendiente
+      final taskRef = _firestore.collection('tasks').doc(taskId);
+      final prevSnap = await taskRef.get();
+      final prevData = prevSnap.exists ? prevSnap.data() : null;
+
+      await taskRef.update({
+        'status': 'rejected',
         'rejectionReason': reason,
-        'completedAt': null, // Limpia la fecha de completado
+        'reviewComment': reason,
+        'reviewedAt': FieldValue.serverTimestamp(),
       });
 
-      AppLogger.success('Tarea $taskId rechazada por admin',
-          name: 'TaskService');
+      final afterSnap = await taskRef.get();
+      final afterData = afterSnap.exists ? afterSnap.data() : null;
+
+      await HistoryService.recordEvent(
+        taskId: taskId,
+        action: 'reject',
+        actorUid: user.uid,
+        actorRole: userDoc.data()?['role'] as String?,
+        payload: {'before': prevData, 'after': afterData, 'reason': reason},
+      );
+
+      // 🔔 NO enviar notificación local aquí
+      // Las notificaciones push se envían automáticamente por Cloud Function
+      // (sendTaskRejectedNotification se activa cuando status cambia a 'rejected')
+
+      AppLogger.success('Tarea $taskId rechazada por admin', name: 'TaskService');
       return true;
     } catch (e) {
       AppLogger.error('Error rechazando tarea', error: e, name: 'TaskService');
+      return false;
+    }
+  }
+
+  /// Admin aprueba tarea en revisión (nuevo flujo con evidencias)
+  static Future<bool> approveTaskReview({
+    required String taskId,
+    String? reviewComment,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return false;
+
+      // Verificar que el usuario es admin
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      if (!userDoc.exists || userDoc.data()?['role'] != 'admin') {
+        AppLogger.warning('Solo administradores pueden aprobar tareas',
+            name: 'TaskService');
+        return false;
+      }
+
+      final taskRef = _firestore.collection('tasks').doc(taskId);
+      final prevSnap = await taskRef.get();
+      final prevData = prevSnap.exists ? prevSnap.data() : null;
+
+      await taskRef.update({
+        'status': 'completed',
+        'completedAt': FieldValue.serverTimestamp(),
+        'confirmedAt': FieldValue.serverTimestamp(),
+        'confirmedBy': user.uid,
+        'reviewComment': reviewComment,
+        'reviewedAt': FieldValue.serverTimestamp(),
+      });
+
+      final afterSnap = await taskRef.get();
+      final afterData = afterSnap.exists ? afterSnap.data() : null;
+
+      await HistoryService.recordEvent(
+        taskId: taskId,
+        action: 'approve_review',
+        actorUid: user.uid,
+        actorRole: userDoc.data()?['role'] as String?,
+        payload: {
+          'before': prevData,
+          'after': afterData,
+          'reviewComment': reviewComment,
+        },
+      );
+
+      AppLogger.success('Tarea $taskId aprobada por admin', name: 'TaskService');
+      return true;
+    } catch (e) {
+      AppLogger.error('Error aprobando tarea', error: e, name: 'TaskService');
+      return false;
+    }
+  }
+
+  /// Admin rechaza tarea en revisión (nuevo flujo con evidencias)
+  static Future<bool> rejectTaskReview({
+    required String taskId,
+    required String reason,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return false;
+
+      // Verificar que el usuario es admin
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      if (!userDoc.exists || userDoc.data()?['role'] != 'admin') {
+        AppLogger.warning('Solo administradores pueden rechazar tareas',
+            name: 'TaskService');
+        return false;
+      }
+
+      final taskRef = _firestore.collection('tasks').doc(taskId);
+      final prevSnap = await taskRef.get();
+      final prevData = prevSnap.exists ? prevSnap.data() : null;
+
+      await taskRef.update({
+        'status': 'in_progress', // Vuelve a in_progress para que el usuario corrija
+        'rejectionReason': reason,
+        'reviewComment': reason,
+        'reviewedAt': FieldValue.serverTimestamp(),
+      });
+
+      final afterSnap = await taskRef.get();
+      final afterData = afterSnap.exists ? afterSnap.data() : null;
+
+      await HistoryService.recordEvent(
+        taskId: taskId,
+        action: 'reject_review',
+        actorUid: user.uid,
+        actorRole: userDoc.data()?['role'] as String?,
+        payload: {'before': prevData, 'after': afterData, 'reason': reason},
+      );
+
+      AppLogger.success('Tarea $taskId rechazada en revisión por admin', name: 'TaskService');
+      return true;
+    } catch (e) {
+      AppLogger.error('Error rechazando tarea en revisión', error: e, name: 'TaskService');
       return false;
     }
   }
@@ -193,14 +370,28 @@ class TaskService {
       final user = _auth.currentUser;
       if (user == null) return false;
 
-      await _firestore.collection('tasks').doc(taskId).update({
+      final taskRef = _firestore.collection('tasks').doc(taskId);
+      final prevSnap = await taskRef.get();
+      final prevData = prevSnap.exists ? prevSnap.data() : null;
+
+      await taskRef.update({
         'status': 'in_progress',
         'startedAt': FieldValue.serverTimestamp(),
         'startedBy': user.uid,
       });
 
-      AppLogger.success('Tarea $taskId iniciada por ${user.uid}',
-          name: 'TaskService');
+      final afterSnap = await taskRef.get();
+      final afterData = afterSnap.exists ? afterSnap.data() : null;
+
+      await HistoryService.recordEvent(
+        taskId: taskId,
+        action: 'start',
+        actorUid: user.uid,
+        actorRole: null,
+        payload: {'before': prevData, 'after': afterData},
+      );
+
+      AppLogger.success('Tarea $taskId iniciada por ${user.uid}', name: 'TaskService');
       return true;
     } catch (e) {
       AppLogger.error('Error iniciando tarea', error: e, name: 'TaskService');
@@ -214,17 +405,96 @@ class TaskService {
       final user = _auth.currentUser;
       if (user == null) return false;
 
-      await _firestore.collection('tasks').doc(taskId).update({
+      final taskRef = _firestore.collection('tasks').doc(taskId);
+      final prevSnap = await taskRef.get();
+      final prevData = prevSnap.exists ? prevSnap.data() : null;
+      final task = prevData != null 
+          ? TaskModel.fromFirestore(prevData, taskId)
+          : null;
+
+      await taskRef.update({
         'status': 'completed',
         'completedAt': FieldValue.serverTimestamp(),
         'completedBy': user.uid,
       });
 
-      AppLogger.success('Tarea $taskId completada por ${user.uid}',
-          name: 'TaskService');
+      final afterSnap = await taskRef.get();
+      final afterData = afterSnap.exists ? afterSnap.data() : null;
+
+      await HistoryService.recordEvent(
+        taskId: taskId,
+        action: 'complete',
+        actorUid: user.uid,
+        actorRole: null,
+        payload: {'before': prevData, 'after': afterData},
+      );
+
+      // 🔔 Notificación y cancelar notificaciones programadas
+      if (task != null) {
+        // Cancelar notificaciones pendientes
+        await NotificationService.cancelTaskNotifications(taskId);
+        
+        // Si es tarea personal, mostrar notificación de felicitación
+        if (task.isPersonal) {
+          await NotificationService.showPersonalTaskCompletedNotification(
+            taskTitle: task.title,
+            taskId: taskId,
+          );
+        }
+      }
+
+      AppLogger.success('Tarea $taskId completada por ${user.uid}', name: 'TaskService');
       return true;
     } catch (e) {
       AppLogger.error('Error completando tarea', error: e, name: 'TaskService');
+      return false;
+    }
+  }
+
+  /// Usuario envía tarea para revisión con evidencias (nuevo flujo)
+  static Future<bool> submitTaskForReview({
+    required String taskId,
+    String? comment,
+    List<String>? links,
+    List<String>? attachments,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return false;
+
+      final taskRef = _firestore.collection('tasks').doc(taskId);
+      final prevSnap = await taskRef.get();
+      final prevData = prevSnap.exists ? prevSnap.data() : null;
+
+      await taskRef.update({
+        'status': 'pending_review',
+        'completionComment': comment,
+        'links': links ?? [],
+        'attachmentUrls': attachments ?? [],
+        'submittedAt': FieldValue.serverTimestamp(),
+      });
+
+      final afterSnap = await taskRef.get();
+      final afterData = afterSnap.exists ? afterSnap.data() : null;
+
+      await HistoryService.recordEvent(
+        taskId: taskId,
+        action: 'submit_for_review',
+        actorUid: user.uid,
+        actorRole: null,
+        payload: {
+          'before': prevData,
+          'after': afterData,
+          'comment': comment,
+          'links': links,
+          'attachments': attachments,
+        },
+      );
+
+      AppLogger.success('Tarea $taskId enviada para revisión por ${user.uid}', name: 'TaskService');
+      return true;
+    } catch (e) {
+      AppLogger.error('Error enviando tarea para revisión', error: e, name: 'TaskService');
       return false;
     }
   }
@@ -270,10 +540,24 @@ class TaskService {
         return false;
       }
 
-      await _firestore.collection('tasks').doc(taskId).update(updateData);
+      final taskRef = _firestore.collection('tasks').doc(taskId);
+      final prevSnap = await taskRef.get();
+      final prevData = prevSnap.exists ? prevSnap.data() : null;
 
-      AppLogger.success('Estado de tarea $taskId revertido exitosamente',
-          name: 'TaskService');
+      await taskRef.update(updateData);
+
+      final afterSnap = await taskRef.get();
+      final afterData = afterSnap.exists ? afterSnap.data() : null;
+
+      await HistoryService.recordEvent(
+        taskId: taskId,
+        action: 'revert',
+        actorUid: user.uid,
+        actorRole: null,
+        payload: {'before': prevData, 'after': afterData},
+      );
+
+      AppLogger.success('Estado de tarea $taskId revertido exitosamente', name: 'TaskService');
       return true;
     } catch (e) {
       AppLogger.error('Error revirtiendo estado de tarea',
@@ -310,8 +594,21 @@ class TaskService {
 
       final docRef = await _firestore.collection('tasks').add(taskData);
 
-      AppLogger.success('Tarea personal creada: ${docRef.id}',
-          name: 'TaskService');
+      try {
+        await HistoryService.recordEvent(
+          taskId: docRef.id,
+          action: 'create_personal',
+          actorUid: user.uid,
+          actorRole: null,
+          payload: {'after': taskData},
+        );
+      } catch (_) {}
+
+      // 🔔 Programar notificaciones para la tarea personal
+      final task = TaskModel.fromFirestore(taskData, docRef.id);
+      await NotificationService.schedulePersonalTaskNotifications(task: task);
+
+      AppLogger.success('Tarea personal creada: ${docRef.id}', name: 'TaskService');
       return docRef.id;
     } catch (e) {
       AppLogger.error('Error creando tarea personal',
@@ -339,11 +636,17 @@ class TaskService {
     return _firestore
         .collection('tasks')
         .where('assignedTo', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => TaskModel.fromFirestore(doc.data(), doc.id))
-            .toList());
+        .map((snapshot) {
+      final tasks = snapshot.docs
+          .map((doc) => TaskModel.fromFirestore(doc.data(), doc.id))
+          .toList();
+      
+      // Ordenar en memoria para evitar necesitar índice compuesto
+      tasks.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      
+      return tasks;
+    });
   }
 
   /// Actualizar tarea personal
@@ -369,15 +672,29 @@ class TaskService {
         return false;
       }
 
-      await _firestore.collection('tasks').doc(taskId).update({
+      final taskRef = _firestore.collection('tasks').doc(taskId);
+      final prevSnap = await taskRef.get();
+      final prevData = prevSnap.exists ? prevSnap.data() : null;
+
+      await taskRef.update({
         'title': title,
         'description': description,
         'dueDate': Timestamp.fromDate(dueDate),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      AppLogger.success('Tarea personal actualizada: $taskId',
-          name: 'TaskService');
+      final afterSnap = await taskRef.get();
+      final afterData = afterSnap.exists ? afterSnap.data() : null;
+
+      await HistoryService.recordEvent(
+        taskId: taskId,
+        action: 'update_personal',
+        actorUid: user.uid,
+        actorRole: null,
+        payload: {'before': prevData, 'after': afterData},
+      );
+
+      AppLogger.success('Tarea personal actualizada: $taskId', name: 'TaskService');
       return true;
     } catch (e) {
       AppLogger.error('Error actualizando tarea personal',
@@ -404,10 +721,23 @@ class TaskService {
         return false;
       }
 
-      await _firestore.collection('tasks').doc(taskId).delete();
+      final taskRef = _firestore.collection('tasks').doc(taskId);
+      final prevSnap = await taskRef.get();
+      final prevData = prevSnap.exists ? prevSnap.data() : null;
 
-      AppLogger.success('Tarea personal eliminada: $taskId',
-          name: 'TaskService');
+      try {
+        await HistoryService.recordEvent(
+          taskId: taskId,
+          action: 'delete_personal',
+          actorUid: user.uid,
+          actorRole: null,
+          payload: {'before': prevData, 'after': null},
+        );
+      } catch (_) {}
+
+      await taskRef.delete();
+
+      AppLogger.success('Tarea personal eliminada: $taskId', name: 'TaskService');
       return true;
     } catch (e) {
       AppLogger.error('Error eliminando tarea personal',

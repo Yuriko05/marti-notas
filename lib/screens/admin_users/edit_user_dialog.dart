@@ -135,12 +135,11 @@ class _EditUserDialogState extends State<EditUserDialog> {
                             style: const TextStyle(
                                 fontSize: 12, color: Colors.grey),
                           ),
-                          if (widget.user.password != null)
-                            Text(
-                              'Contraseña: ${widget.user.password}',
-                              style: const TextStyle(
-                                  fontSize: 12, color: Colors.grey),
-                            ),
+                          Text(
+                            'Contraseña: ${widget.user.hasPassword ? 'Sí' : 'No'}',
+                            style: const TextStyle(
+                                fontSize: 12, color: Colors.grey),
+                          ),
                         ],
                       ),
                     ),

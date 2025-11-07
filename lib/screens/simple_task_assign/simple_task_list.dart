@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/task_model.dart';
 import '../../models/user_model.dart';
 import '../../widgets/task_preview_dialog.dart';
+import '../../widgets/task_card.dart';
 
 /// Widget de lista de tareas con filtrado
 class SimpleTaskList extends StatelessWidget {
@@ -11,6 +12,11 @@ class SimpleTaskList extends StatelessWidget {
   final String statusFilter;
   final Function(TaskModel) onEdit;
   final Function(TaskModel) onDelete;
+  final String currentUserId;
+  final Set<String> selectedTaskIds;
+  final ValueChanged<String>? onTaskToggleSelection;
+  final TaskModel? selectedTask; // Para highlight de tarea seleccionada
+  final Function(TaskModel)? onTaskSelected; // Callback para seleccionar tarea
 
   const SimpleTaskList({
     super.key,
@@ -20,6 +26,11 @@ class SimpleTaskList extends StatelessWidget {
     required this.statusFilter,
     required this.onEdit,
     required this.onDelete,
+    required this.currentUserId,
+    this.selectedTaskIds = const {},
+    this.onTaskToggleSelection,
+    this.selectedTask,
+    this.onTaskSelected,
   });
 
   List<TaskModel> get filteredTasks {
@@ -51,7 +62,61 @@ class SimpleTaskList extends StatelessWidget {
         itemCount: filtered.length,
         itemBuilder: (context, index) {
           final task = filtered[index];
-          return _buildTaskCard(context, task);
+          final user = users.firstWhere(
+            (u) => u.uid == task.assignedTo,
+            orElse: () => UserModel(
+              uid: task.assignedTo,
+              email: 'usuario.eliminado@example.com',
+              name: 'Usuario eliminado',
+              role: 'normal',
+              username: 'usuarioeliminado',
+              hasPassword: false,
+              createdAt: DateTime.now(),
+            ),
+          );
+
+          final isChecked = selectedTaskIds.contains(task.id);
+          final isSelected = selectedTask?.id == task.id;
+
+          return TaskCard(
+            task: task,
+            user: user,
+            isChecked: isChecked,
+            isSelected: isSelected,
+            onToggleSelect: onTaskToggleSelection,
+            showActions: true,
+            onTap: () {
+              // Seleccionar tarea para ver historial
+              onTaskSelected?.call(task);
+              
+              if (task.assignedTo == currentUserId) {
+                showDialog(
+                  context: context,
+                  builder: (context) => TaskPreviewDialog(task: task),
+                );
+                return;
+              }
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Solo el usuario asignado puede abrir la tarea')),
+              );
+            },
+            onEdit: (t) => onEdit(t),
+            onDelete: (t) => onDelete(t),
+            onPreview: (t) {
+              // Same restriction: only assigned user can open preview
+              if (task.assignedTo == currentUserId) {
+                showDialog(
+                  context: context,
+                  builder: (context) => TaskPreviewDialog(task: task),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Solo el usuario asignado puede abrir la tarea')),
+                );
+              }
+            },
+          );
         },
       ),
     );
@@ -124,222 +189,5 @@ class SimpleTaskList extends StatelessWidget {
     );
   }
 
-  Widget _buildTaskCard(BuildContext context, TaskModel task) {
-    final user = users.firstWhere(
-      (u) => u.uid == task.assignedTo,
-      orElse: () => UserModel(
-        uid: task.assignedTo,
-        email: 'Usuario eliminado',
-        name: 'Usuario eliminado',
-        role: 'normal',
-        createdAt: DateTime.now(),
-      ),
-    );
-
-    final statusInfo = _getStatusInfo(task.status);
-    final isOverdue = task.isOverdue;
-
-    return InkWell(
-      onTap: () {
-        showDialog(
-          context: context,
-          builder: (context) => TaskPreviewDialog(task: task),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: isOverdue ? Border.all(color: Colors.red, width: 2) : null,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    gradient: statusInfo['gradient'] as Gradient,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    statusInfo['icon'] as IconData,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        task.title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF2D3748),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(Icons.person,
-                              size: 14, color: Colors.grey.shade600),
-                          const SizedBox(width: 4),
-                          Text(
-                            user.name,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                if (isOverdue)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFfc4a1a), Color(0xFFf7b733)],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      'VENCIDA',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                PopupMenuButton<String>(
-                  onSelected: (value) {
-                    if (value == 'edit') onEdit(task);
-                    if (value == 'delete') onDelete(task);
-                  },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'edit',
-                      child: Row(
-                        children: [
-                          Icon(Icons.edit, size: 18, color: Colors.blue),
-                          SizedBox(width: 8),
-                          Text('Editar'),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete, size: 18, color: Colors.red),
-                          SizedBox(width: 8),
-                          Text('Eliminar'),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              task.description,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade700,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(Icons.calendar_today,
-                    size: 14, color: Colors.grey.shade600),
-                const SizedBox(width: 4),
-                Text(
-                  'Vence: ${_formatDate(task.dueDate)}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isOverdue ? Colors.red : Colors.grey.shade600,
-                    fontWeight: isOverdue ? FontWeight.bold : FontWeight.normal,
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    gradient: statusInfo['gradient'] as Gradient,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    statusInfo['text'] as String,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Map<String, dynamic> _getStatusInfo(String status) {
-    switch (status) {
-      case 'pending':
-        return {
-          'color': const Color(0xFFf093fb),
-          'text': 'Pendiente',
-          'icon': Icons.schedule,
-          'gradient': const LinearGradient(
-            colors: [Color(0xFFf093fb), Color(0xFFf5576c)],
-          ),
-        };
-      case 'completed':
-        return {
-          'color': const Color(0xFF43e97b),
-          'text': 'Completada',
-          'icon': Icons.check_circle,
-          'gradient': const LinearGradient(
-            colors: [Color(0xFF43e97b), Color(0xFF38f9d7)],
-          ),
-        };
-      default:
-        return {
-          'color': Colors.grey,
-          'text': 'Desconocido',
-          'icon': Icons.help,
-          'gradient': const LinearGradient(colors: [Colors.grey, Colors.grey]),
-        };
-    }
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
-  }
+  
 }

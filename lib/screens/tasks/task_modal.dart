@@ -18,6 +18,7 @@ class _TaskModalState extends State<TaskModal> {
   final _titleCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 7));
+  TimeOfDay _selectedTime = const TimeOfDay(hour: 23, minute: 59);
   bool _isLoading = false;
 
   @override
@@ -78,22 +79,50 @@ class _TaskModalState extends State<TaskModal> {
                 maxLength: 500,
               ),
               const SizedBox(height: 16),
-              InkWell(
-                onTap: _selectDate,
-                child: InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: 'Fecha de vencimiento',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.calendar_today),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: InkWell(
+                      onTap: _selectDate,
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Fecha de vencimiento',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.calendar_today),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(_formatDate(_selectedDate)),
+                            const Icon(Icons.arrow_drop_down),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(_formatDate(_selectedDate)),
-                      const Icon(Icons.arrow_drop_down),
-                    ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: InkWell(
+                      onTap: _selectTime,
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Hora',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.access_time),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(_formatTime(_selectedTime)),
+                            const Icon(Icons.arrow_drop_down),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
             ],
           ),
@@ -147,19 +176,39 @@ class _TaskModalState extends State<TaskModal> {
     }
   }
 
+  Future<void> _selectTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _selectedTime,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: Colors.green.shade600,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() => _selectedTime = picked);
+    }
+  }
+
   Future<void> _createTask() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      // Usar fecha con hora por defecto (23:59)
+      // Combinar fecha y hora seleccionadas
       final dueDateTime = DateTime(
         _selectedDate.year,
         _selectedDate.month,
         _selectedDate.day,
-        23,
-        59,
+        _selectedTime.hour,
+        _selectedTime.minute,
       );
 
       final taskId = await TaskService.createPersonalTask(
@@ -194,5 +243,11 @@ class _TaskModalState extends State<TaskModal> {
 
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+
+  String _formatTime(TimeOfDay time) {
+    final hour = time.hour.toString().padLeft(2, '0');
+    final minute = time.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
   }
 }

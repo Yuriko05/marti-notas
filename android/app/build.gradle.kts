@@ -53,5 +53,6 @@ dependencies {
     // Añade la dependencia de Firebase Auth
     implementation("com.google.firebase:firebase-auth")
     // Core library desugaring para flutter_local_notifications
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+    // Actualizado a versión 2.1.4+ como requiere flutter_local_notifications v19+
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

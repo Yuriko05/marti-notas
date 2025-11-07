@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
+import '../models/task_model.dart';
+import '../services/task_service.dart';
 import '../services/task_cleanup_service.dart';
 import '../theme/app_theme.dart';
 import 'tasks/task_header.dart';
 import 'tasks/task_tab_bar.dart';
 import 'tasks/task_list.dart';
 import 'tasks/task_modal.dart';
+import 'tasks/user_task_stats.dart';
+import 'tasks/user_task_search_bar.dart';
 
 /// Pantalla principal de visualización y gestión de tareas personales
 /// Incluye tabs para pendientes, en progreso y completadas
-/// Refactorizada en componentes modulares para mejor mantenibilidad
+/// MEJORADO: Con estadísticas, búsqueda, filtros y mejor UX móvil
 class TasksScreen extends StatefulWidget {
   final UserModel user;
 
@@ -24,6 +28,11 @@ class _TasksScreenState extends State<TasksScreen>
   late TabController _tabController;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  
+  // Estados para búsqueda y filtros
+  String searchQuery = '';
+  String priorityFilter = 'all';
+  List<TaskModel> allTasks = [];
 
   @override
   void initState() {
@@ -41,6 +50,9 @@ class _TasksScreenState extends State<TasksScreen>
 
     // Ejecutar limpieza automática de tareas completadas al cargar la pantalla
     _performAutomaticCleanup();
+    
+    // Cargar todas las tareas para estadísticas
+    _loadAllTasks();
   }
 
   /// Ejecuta la limpieza automática de tareas completadas después de 24 horas
@@ -50,6 +62,17 @@ class _TasksScreenState extends State<TasksScreen>
     } catch (e) {
       debugPrint('Error durante limpieza automática: $e');
     }
+  }
+  
+  /// Carga todas las tareas del usuario para mostrar estadísticas
+  void _loadAllTasks() {
+    TaskService.getUserTasks(widget.user.uid).listen((tasks) {
+      if (mounted) {
+        setState(() {
+          allTasks = tasks;
+        });
+      }
+    });
   }
 
   @override
@@ -61,6 +84,8 @@ class _TasksScreenState extends State<TasksScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -75,56 +100,178 @@ class _TasksScreenState extends State<TasksScreen>
           ),
         ),
         child: SafeArea(
-          child: Column(
+          child: isMobile ? _buildMobileLayout() : _buildDesktopLayout(),
+        ),
+      ),
+      floatingActionButton: _buildFAB(),
+    );
+  }
+  
+  /// Layout para móviles con scroll completo
+  Widget _buildMobileLayout() {
+    return CustomScrollView(
+      slivers: [
+        // Header
+        SliverToBoxAdapter(
+          child: TaskHeader(
+            user: widget.user,
+            onBack: () => Navigator.pop(context),
+          ),
+        ),
+        
+        // Estadísticas
+        SliverToBoxAdapter(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: UserTaskStats(allTasks: allTasks),
+          ),
+        ),
+        
+        // Búsqueda y filtros
+        SliverToBoxAdapter(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: UserTaskSearchBar(
+              searchQuery: searchQuery,
+              priorityFilter: priorityFilter,
+              onSearchChanged: (value) => setState(() => searchQuery = value),
+              onPriorityChanged: (value) => setState(() => priorityFilter = value!),
+            ),
+          ),
+        ),
+        
+        // Tab bar
+        SliverToBoxAdapter(
+          child: TaskTabBar(
+            tabController: _tabController,
+            userId: widget.user.uid,
+          ),
+        ),
+        
+        // Lista de tareas
+        SliverFillRemaining(
+          child: TabBarView(
+            controller: _tabController,
             children: [
-              TaskHeader(
-                user: widget.user,
-                onBack: () => Navigator.pop(context),
-              ),
-              TaskTabBar(
-                tabController: _tabController,
+              TaskList(
                 userId: widget.user.uid,
+                status: 'pending',
+                fadeAnimation: _fadeAnimation,
+                searchQuery: searchQuery,
+                priorityFilter: priorityFilter,
               ),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    TaskList(
-                      userId: widget.user.uid,
-                      status: 'pending',
-                      fadeAnimation: _fadeAnimation,
-                    ),
-                    TaskList(
-                      userId: widget.user.uid,
-                      status: 'in_progress',
-                      fadeAnimation: _fadeAnimation,
-                    ),
-                    TaskList(
-                      userId: widget.user.uid,
-                      status: 'completed',
-                      fadeAnimation: _fadeAnimation,
-                    ),
-                  ],
-                ),
+              TaskList(
+                userId: widget.user.uid,
+                status: 'in_progress',
+                fadeAnimation: _fadeAnimation,
+                searchQuery: searchQuery,
+                priorityFilter: priorityFilter,
+              ),
+              TaskList(
+                userId: widget.user.uid,
+                status: 'completed',
+                fadeAnimation: _fadeAnimation,
+                searchQuery: searchQuery,
+                priorityFilter: priorityFilter,
               ),
             ],
           ),
         ),
-      ),
-      floatingActionButton: FadeTransition(
-        opacity: _fadeAnimation,
-        child: FloatingActionButton.extended(
-          onPressed: _showCreateTaskDialog,
-          backgroundColor: AppColors.secondary,
-          elevation: 8,
-          icon: const Icon(Icons.add_rounded,
-              color: Colors.white, size: AppIconSizes.md),
-          label: Text(
-            'Nueva Tarea',
-            style: AppTextStyles.button.copyWith(color: Colors.white),
+      ],
+    );
+  }
+  
+  /// Layout para desktop/tablet con stats fijos
+  Widget _buildDesktopLayout() {
+    return Column(
+      children: [
+        TaskHeader(
+          user: widget.user,
+          onBack: () => Navigator.pop(context),
+        ),
+        
+        FadeTransition(
+          opacity: _fadeAnimation,
+          child: UserTaskStats(allTasks: allTasks),
+        ),
+        
+        FadeTransition(
+          opacity: _fadeAnimation,
+          child: UserTaskSearchBar(
+            searchQuery: searchQuery,
+            priorityFilter: priorityFilter,
+            onSearchChanged: (value) => setState(() => searchQuery = value),
+            onPriorityChanged: (value) => setState(() => priorityFilter = value!),
           ),
         ),
-      ),
+        
+        TaskTabBar(
+          tabController: _tabController,
+          userId: widget.user.uid,
+        ),
+        
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              TaskList(
+                userId: widget.user.uid,
+                status: 'pending',
+                fadeAnimation: _fadeAnimation,
+                searchQuery: searchQuery,
+                priorityFilter: priorityFilter,
+              ),
+              TaskList(
+                userId: widget.user.uid,
+                status: 'in_progress',
+                fadeAnimation: _fadeAnimation,
+                searchQuery: searchQuery,
+                priorityFilter: priorityFilter,
+              ),
+              TaskList(
+                userId: widget.user.uid,
+                status: 'completed',
+                fadeAnimation: _fadeAnimation,
+                searchQuery: searchQuery,
+                priorityFilter: priorityFilter,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildFAB() {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: isMobile
+          ? FloatingActionButton(
+              onPressed: _showCreateTaskDialog,
+              backgroundColor: AppColors.secondary,
+              elevation: 8,
+              child: const Icon(
+                Icons.add_rounded,
+                color: Colors.white,
+                size: AppIconSizes.md,
+              ),
+            )
+          : FloatingActionButton.extended(
+              onPressed: _showCreateTaskDialog,
+              backgroundColor: AppColors.secondary,
+              elevation: 8,
+              icon: const Icon(
+                Icons.add_rounded,
+                color: Colors.white,
+                size: AppIconSizes.md,
+              ),
+              label: Text(
+                'Nueva Tarea',
+                style: AppTextStyles.button.copyWith(color: Colors.white),
+              ),
+            ),
     );
   }
 

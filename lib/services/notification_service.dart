@@ -1,19 +1,30 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 import '../models/task_model.dart';
 
+/// Handler para notificaciones en segundo plano
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  print('📥 Mensaje en segundo plano: ${message.messageId}');
+  print('Título: ${message.notification?.title}');
+  print('Cuerpo: ${message.notification?.body}');
+}
+
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
+  static final FirebaseMessaging _fcm = FirebaseMessaging.instance;
+  
   static const String _channelId = 'task_notifications';
   static const String _channelName = 'Notificaciones de Tareas';
   static const String _channelDescription =
       'Notificaciones para tareas y recordatorios';
 
-  /// Inicializar el servicio de notificaciones
+  /// Inicializar el servicio de notificaciones (locales + push)
   static Future<void> initialize() async {
     // Inicializar timezone
     tz.initializeTimeZones();
@@ -36,7 +47,7 @@ class NotificationService {
       iOS: iosSettings,
     );
 
-    // Inicializar
+    // Inicializar notificaciones locales
     await _notifications.initialize(
       settings,
       onDidReceiveNotificationResponse: _onNotificationTapped,
@@ -44,6 +55,132 @@ class NotificationService {
 
     // Crear canal de notificaciones para Android
     await _createNotificationChannel();
+    
+    // Inicializar Firebase Cloud Messaging (push)
+    await _initializeFCM();
+  }
+
+  /// Inicializar Firebase Cloud Messaging
+  static Future<void> _initializeFCM() async {
+    try {
+      // Solicitar permisos de notificaciones push
+      NotificationSettings settings = await _fcm.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        provisional: false,
+      );
+
+      print('📱 Permisos FCM: ${settings.authorizationStatus}');
+
+      if (settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional) {
+        // Obtener y guardar FCM token
+        await _saveFCMToken();
+
+        // Configurar handler para mensajes en segundo plano
+        FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+        // Manejar mensajes cuando la app está en primer plano
+        FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+          print('📥 Mensaje en primer plano: ${message.messageId}');
+          
+          if (message.notification != null) {
+            // Mostrar notificación local cuando llega push en primer plano
+            showNotification(
+              id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
+              title: message.notification!.title ?? 'Nueva notificación',
+              body: message.notification!.body ?? '',
+              payload: message.data['taskId'] ?? '',
+            );
+          }
+        });
+
+        // Manejar cuando el usuario toca la notificación (app en segundo plano)
+        FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+          print('📱 App abierta desde notificación: ${message.messageId}');
+          _handleNotificationTap(message.data);
+        });
+
+        // Manejar si la app se abrió desde una notificación (app cerrada)
+        RemoteMessage? initialMessage = await _fcm.getInitialMessage();
+        if (initialMessage != null) {
+          print('📱 App abierta desde notificación (cerrada): ${initialMessage.messageId}');
+          _handleNotificationTap(initialMessage.data);
+        }
+
+        print('✅ Firebase Cloud Messaging inicializado correctamente');
+      } else {
+        print('❌ Permisos de notificaciones push denegados');
+      }
+    } catch (e) {
+      print('❌ Error inicializando FCM: $e');
+    }
+  }
+
+  /// Guardar FCM token en Firestore
+  static Future<void> _saveFCMToken() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      // Guardar token como un array para soportar múltiples dispositivos por usuario
+      final token = await _fcm.getToken();
+      if (token != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .set({
+          // Usamos fcmTokens (array) en vez de un único fcmToken
+          'fcmTokens': FieldValue.arrayUnion([token]),
+          'fcmTokensUpdatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        print('✅ FCM Token agregado a fcmTokens: ${token.substring(0, 20)}... (set merge)');
+      }
+
+      // Escuchar actualizaciones del token y añadir al array (evita duplicados automáticamente)
+      _fcm.onTokenRefresh.listen((newToken) async {
+        print('🔄 FCM Token actualizado: agregando al arreglo');
+        try {
+          final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+          await userRef.set({
+            'fcmTokens': FieldValue.arrayUnion([newToken]),
+            'fcmTokensUpdatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        } catch (e) {
+          print('❌ Error guardando nuevo token: $e');
+        }
+      });
+    } catch (e) {
+      print('❌ Error guardando FCM token: $e');
+    }
+  }
+
+  /// Registrar el token del dispositivo actual en Firestore (usado al iniciar sesión)
+  static Future<void> registerCurrentDeviceToken() async {
+    // Reutilizamos la lógica existente que obtiene y guarda el token
+    await _saveFCMToken();
+  }
+
+  /// Obtener el FCM token del usuario actual
+  static Future<String?> getFCMToken() async {
+    try {
+      return await _fcm.getToken();
+    } catch (e) {
+      print('❌ Error obteniendo FCM token: $e');
+      return null;
+    }
+  }
+
+  /// Manejar cuando se toca una notificación push
+  static void _handleNotificationTap(Map<String, dynamic> data) {
+    print('🔔 Notificación tocada con data: $data');
+    // TODO: Implementar navegación a la tarea específica
+    final taskId = data['taskId'];
+    if (taskId != null) {
+      print('📋 Navegar a tarea: $taskId');
+      // Aquí puedes implementar navegación usando un NavigatorKey global
+    }
   }
 
   /// Crear canal de notificaciones para Android
@@ -166,8 +303,6 @@ class NotificationService {
       scheduledTZ,
       details,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
       payload: payload,
     );
   }
@@ -180,6 +315,35 @@ class NotificationService {
   /// Cancelar todas las notificaciones
   static Future<void> cancelAllNotifications() async {
     await _notifications.cancelAll();
+  }
+
+  /// Eliminar token FCM del array del usuario (usado al hacer logout)
+  static Future<void> removeCurrentDeviceToken() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final token = await _fcm.getToken();
+      if (token == null) return;
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .set({
+        'fcmTokens': FieldValue.arrayRemove([token]),
+      }, SetOptions(merge: true));
+
+      // Intentar eliminar el token localmente para forzar un token nuevo en próximas sesiones
+      try {
+        await _fcm.deleteToken();
+      } catch (e) {
+        print('⚠️ No se pudo eliminar el token localmente: $e');
+      }
+
+      print('✅ FCM Token eliminado del arreglo y token local borrado');
+    } catch (e) {
+      print('❌ Error eliminando FCM token: $e');
+    }
   }
 
   /// Programar notificaciones diarias para un usuario
@@ -352,7 +516,152 @@ class NotificationService {
     }
   }
 
-  /// Mostrar notificación inmediata cuando se asigna una tarea
+  /// ========================================
+  /// NOTIFICACIONES PARA TAREAS ASIGNADAS
+  /// ========================================
+
+  /// Notificación inmediata cuando admin asigna una tarea
+  static Future<void> showTaskAssignedNotification({
+    required String taskTitle,
+    required String taskId,
+    required String adminName,
+  }) async {
+    try {
+      await showNotification(
+        id: taskId.hashCode,
+        title: '📋 Nueva Tarea Asignada',
+        body: '$adminName te asignó: "$taskTitle"',
+        payload: 'task_assigned_$taskId',
+      );
+      print('✅ Notificación de asignación enviada: $taskTitle');
+    } catch (e) {
+      print('❌ Error enviando notificación de asignación: $e');
+    }
+  }
+
+  /// Notificación cuando el admin confirma/acepta una tarea
+  static Future<void> showTaskAcceptedNotification({
+    required String taskTitle,
+    required String taskId,
+  }) async {
+    try {
+      await showNotification(
+        id: taskId.hashCode + 100,
+        title: '✅ Tarea Aceptada',
+        body: 'Tu tarea "$taskTitle" fue confirmada por el administrador',
+        payload: 'task_accepted_$taskId',
+      );
+      print('✅ Notificación de aceptación enviada: $taskTitle');
+    } catch (e) {
+      print('❌ Error enviando notificación de aceptación: $e');
+    }
+  }
+
+  /// Notificación cuando el admin rechaza una tarea
+  static Future<void> showTaskRejectedNotification({
+    required String taskTitle,
+    required String taskId,
+    String? reason,
+  }) async {
+    try {
+      final body = reason != null
+          ? 'Tu tarea "$taskTitle" fue rechazada. Motivo: $reason'
+          : 'Tu tarea "$taskTitle" fue rechazada por el administrador';
+      
+      await showNotification(
+        id: taskId.hashCode + 200,
+        title: '❌ Tarea Rechazada',
+        body: body,
+        payload: 'task_rejected_$taskId',
+      );
+      print('✅ Notificación de rechazo enviada: $taskTitle');
+    } catch (e) {
+      print('❌ Error enviando notificación de rechazo: $e');
+    }
+  }
+
+  /// ========================================
+  /// NOTIFICACIONES PARA TAREAS PERSONALES
+  /// ========================================
+
+  /// Programar notificaciones para una tarea personal
+  static Future<void> schedulePersonalTaskNotifications({
+    required TaskModel task,
+  }) async {
+    if (!task.isPersonal) return;
+
+    try {
+      // Cancelar notificaciones anteriores si existen
+      await cancelTaskNotifications(task.id);
+
+      // 1. Notificación 1 día antes de vencer
+      final oneDayBefore = task.dueDate.subtract(const Duration(days: 1));
+      if (oneDayBefore.isAfter(DateTime.now())) {
+        await scheduleNotification(
+          id: task.id.hashCode + 10,
+          title: '⏰ Recordatorio de Tarea Personal',
+          body: '"${task.title}" vence mañana',
+          scheduledTime: oneDayBefore,
+          payload: 'personal_task_reminder_${task.id}',
+        );
+      }
+
+      // 2. Notificación al momento de vencer
+      if (task.dueDate.isAfter(DateTime.now())) {
+        await scheduleNotification(
+          id: task.id.hashCode + 11,
+          title: '🔔 Tarea Personal Venciendo',
+          body: '"${task.title}" vence ahora',
+          scheduledTime: task.dueDate,
+          payload: 'personal_task_due_${task.id}',
+        );
+      }
+
+      print('✅ Notificaciones programadas para tarea personal: ${task.title}');
+    } catch (e) {
+      print('❌ Error programando notificaciones personales: $e');
+    }
+  }
+
+  /// Notificación cuando se completa una tarea personal
+  static Future<void> showPersonalTaskCompletedNotification({
+    required String taskTitle,
+    required String taskId,
+  }) async {
+    try {
+      await showNotification(
+        id: taskId.hashCode + 300,
+        title: '🎉 ¡Tarea Completada!',
+        body: 'Completaste: "$taskTitle"',
+        payload: 'personal_task_completed_$taskId',
+      );
+      print('✅ Notificación de tarea personal completada: $taskTitle');
+    } catch (e) {
+      print('❌ Error enviando notificación de completación: $e');
+    }
+  }
+
+  /// Cancelar todas las notificaciones de una tarea
+  static Future<void> cancelTaskNotifications(String taskId) async {
+    try {
+      await cancelNotification(taskId.hashCode);
+      await cancelNotification(taskId.hashCode + 1);
+      await cancelNotification(taskId.hashCode + 10);
+      await cancelNotification(taskId.hashCode + 11);
+      await cancelNotification(taskId.hashCode + 100);
+      await cancelNotification(taskId.hashCode + 200);
+      await cancelNotification(taskId.hashCode + 300);
+      print('🗑️ Notificaciones canceladas para tarea: $taskId');
+    } catch (e) {
+      print('❌ Error cancelando notificaciones: $e');
+    }
+  }
+
+  /// ========================================
+  /// DEPRECATED - Mantener por compatibilidad
+  /// ========================================
+
+  /// @deprecated Use showTaskAssignedNotification instead
   static Future<void> showInstantTaskNotification({
     required String taskTitle,
     required String userName,

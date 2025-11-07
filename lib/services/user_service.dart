@@ -42,6 +42,9 @@ class UserService {
     final UserModel newUser = UserModel(
       uid: firebaseUser.uid,
       email: firebaseUser.email ?? '',
+      username: firebaseUser.email?.split('@')[0] ??
+          firebaseUser.displayName ??
+          'usuario',
       name: firebaseUser.displayName ??
           firebaseUser.email?.split('@')[0] ??
           'Usuario',

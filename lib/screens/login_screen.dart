@@ -15,7 +15,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen>
     with TickerProviderStateMixin {
-  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
@@ -46,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void dispose() {
     _animationController.dispose();
-    _nameController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -59,11 +59,14 @@ class _LoginScreenState extends State<LoginScreen>
     });
 
     try {
-      print('Intentando iniciar sesión: ${_nameController.text.trim()}');
+      final rawInput = _emailController.text.trim();
+      final email = rawInput.contains('@') ? rawInput : '${rawInput}@gmail.com';
+      print('Intentando iniciar sesión: $email (entrada: $rawInput)');
 
-      // Usar el nuevo método simplificado con nombre y contraseña
-      final UserModel? user = await AuthService.signInWithNameAndPassword(
-        name: _nameController.text.trim(),
+      // Usar login por email y contraseña (si el usuario ingresó solo nombre,
+      // se concatena @gmail.com automáticamente)
+      final UserModel? user = await AuthService.signInWithEmailAndPassword(
+        email: email,
         password: _passwordController.text.trim(),
       );
 
@@ -94,6 +97,26 @@ class _LoginScreenState extends State<LoginScreen>
         });
       }
     }
+  }
+
+  // Validador que acepta un nombre de usuario simple (p.ej. "yuri") o un email.
+  String? _validateLoginNameOrEmail(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'El usuario o correo es requerido';
+    }
+
+    final v = value.trim();
+
+    // Si contiene @, validar como email
+    if (v.contains('@')) {
+      return FormValidators.validateEmail(v);
+    }
+
+      // Permitir nombres simples: letras, números, punto, guion bajo o guion
+      final ok = RegExp(r'^[a-zA-Z0-9._-]{2,}$').hasMatch(v);
+    if (!ok) return 'Usuario no válido';
+
+    return null;
   }
 
   @override
@@ -165,13 +188,15 @@ class _LoginScreenState extends State<LoginScreen>
                               ),
                               const SizedBox(height: 48),
 
-                              // Campo nombre premium
+                              // Campo email/usuario premium. Si el user ingresa solo
+                              // un nombre (ej. "yuri"), se añadirá @gmail.com al
+                              // presionar Acceder.
                               _buildPremiumTextField(
-                                controller: _nameController,
-                                label: 'Nombre de Usuario',
-                                icon: Icons.person_outlined,
+                                controller: _emailController,
+                                label: 'Usuario o correo',
+                                icon: Icons.person_outline,
                                 keyboardType: TextInputType.text,
-                                validator: FormValidators.validateName,
+                                validator: _validateLoginNameOrEmail,
                               ),
                               const SizedBox(height: 24),
 

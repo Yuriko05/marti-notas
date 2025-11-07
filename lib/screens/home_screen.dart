@@ -7,7 +7,6 @@ import 'home/home_screen_app_bar.dart';
 import 'home/home_screen_fab.dart';
 import 'home/home_admin_view.dart';
 import 'home/home_user_view.dart';
-import 'home/home_stats_dialog.dart';
 
 /// Pantalla principal de la aplicación
 /// Muestra diferentes vistas según el rol del usuario
@@ -98,10 +97,7 @@ class _HomeScreenState extends State<HomeScreen>
         return FadeTransition(
           opacity: _fadeAnimation,
           child: widget.user.isAdmin
-              ? HomeAdminView(
-                  user: widget.user,
-                  onShowStats: () => HomeStatsDialog.show(context),
-                )
+              ? HomeAdminView(user: widget.user)
               : HomeUserView(user: widget.user),
         );
       },

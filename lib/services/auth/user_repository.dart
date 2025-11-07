@@ -14,10 +14,20 @@ class UserRepository {
   /// Crear perfil de usuario en Firestore
   Future<void> createUserProfile(UserModel user) async {
     try {
-      await _firestore
-          .collection(_usersCollection)
-          .doc(user.uid)
-          .set(user.toFirestore());
+      // Prepare data and ensure we store a normalized `username` for
+      // consistent lookups. Do NOT persist plaintext passwords here.
+      final Map<String, dynamic> data = Map<String, dynamic>.from(user.toFirestore());
+
+      // Normalize username from display name
+      String username = _normalizeName(user.name);
+      data['username'] = username;
+
+      // Remove password if present to avoid storing it in Firestore
+      if (data.containsKey('password')) {
+        data.remove('password');
+      }
+
+      await _firestore.collection(_usersCollection).doc(user.uid).set(data);
 
       debugPrint('UserRepository: Perfil creado para usuario: ${user.uid}');
     } catch (e) {
@@ -125,11 +135,25 @@ class UserRepository {
   /// Buscar usuario por nombre en Firestore
   Future<UserModel?> findUserByName(String name) async {
     try {
-      final QuerySnapshot query = await _firestore
+      final trimmed = name.trim();
+
+      // Try lookup by normalized username first (preferred)
+      final normalized = _normalizeName(trimmed);
+
+      QuerySnapshot query = await _firestore
           .collection(_usersCollection)
-          .where('name', isEqualTo: name.trim())
+          .where('username', isEqualTo: normalized)
           .limit(1)
           .get();
+
+      if (query.docs.isEmpty) {
+        // Fallback to legacy `name` field for backward compatibility
+        query = await _firestore
+            .collection(_usersCollection)
+            .where('name', isEqualTo: trimmed)
+            .limit(1)
+            .get();
+      }
 
       if (query.docs.isNotEmpty) {
         final doc = query.docs.first;
@@ -142,6 +166,16 @@ class UserRepository {
       debugPrint('UserRepository: Error buscando usuario por nombre: $e');
       return null;
     }
+  }
+
+  /// Normaliza un nombre para usarlo como `username` en Firestore.
+  /// Convenciones: lowercase, sin espacios, solo a-z0-9.
+  String _normalizeName(String name) {
+    return name
+        .toLowerCase()
+        .trim()
+        .replaceAll(RegExp(r'\s+'), '')
+        .replaceAll(RegExp(r'[^a-z0-9]'), '');
   }
 
   /// Obtener todos los usuarios (para panel admin)

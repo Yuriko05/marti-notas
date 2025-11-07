@@ -27,13 +27,19 @@ class DebugHelper {
         final fakeEmail = _generateFakeEmail(name);
         debugPrint('   $name -> $fakeEmail');
 
-        // Verificar si existe en Firebase Auth
+        // Verificar si existe en Firestore (más confiable que Auth)
         try {
-          final methods = await _auth.fetchSignInMethodsForEmail(fakeEmail);
-          if (methods.isNotEmpty) {
-            debugPrint('     ✅ Existe en Firebase Auth: ${methods.join(', ')}');
+          final userQuery = await _firestore
+              .collection('users')
+              .where('email', isEqualTo: fakeEmail)
+              .limit(1)
+              .get();
+          
+          if (userQuery.docs.isNotEmpty) {
+            final userData = userQuery.docs.first.data();
+            debugPrint('     ✅ Existe en Firestore - Rol: ${userData['role']}');
           } else {
-            debugPrint('     ❌ NO existe en Firebase Auth');
+            debugPrint('     ❌ NO existe en Firestore');
           }
         } catch (e) {
           debugPrint('     ⚠️ Error verificando existencia: $e');
@@ -108,7 +114,7 @@ class DebugHelper {
         .replaceAll(' ', '')
         .replaceAll(RegExp(r'[^a-z0-9]'), '');
 
-    return '${cleanName}@app.local';
+    return '$cleanName@app.local';
   }
 
   /// Crear un usuario de prueba
@@ -126,13 +132,19 @@ class DebugHelper {
       final String fakeEmail = _generateFakeEmail(name);
       debugPrint('Email fake: $fakeEmail');
 
-      // 0. Verificar si ya existe
+      // 0. Verificar si ya existe en Firestore
       try {
-        final existingMethods =
-            await _auth.fetchSignInMethodsForEmail(fakeEmail);
-        if (existingMethods.isNotEmpty) {
-          debugPrint('⚠️ El usuario ya existe en Firebase Auth');
-          debugPrint('   Métodos disponibles: ${existingMethods.join(', ')}');
+        final existingQuery = await _firestore
+            .collection('users')
+            .where('email', isEqualTo: fakeEmail)
+            .limit(1)
+            .get();
+        
+        if (existingQuery.docs.isNotEmpty) {
+          debugPrint('⚠️ El usuario ya existe en Firestore');
+          final userData = existingQuery.docs.first.data();
+          debugPrint('   Rol: ${userData['role']}');
+          debugPrint('   Nombre: ${userData['name']}');
           return;
         }
       } catch (e) {
@@ -167,17 +179,21 @@ class DebugHelper {
 
       debugPrint('✅ Usuario guardado en Firestore');
 
-      // 3. Verificar que se creó correctamente
-      debugPrint('🔍 Verificando creación en Firebase Auth...');
+      // 3. Verificar que se creó correctamente en Firestore
+      debugPrint('🔍 Verificando creación en Firestore...');
       try {
-        final verifyMethods = await _auth.fetchSignInMethodsForEmail(fakeEmail);
-        debugPrint(
-            '   Métodos después de creación: ${verifyMethods.join(', ')}');
-
-        if (verifyMethods.isEmpty) {
-          debugPrint(
-              '⚠️ ADVERTENCIA: El usuario no aparece inmediatamente en Firebase Auth');
-          debugPrint('   Esto puede ser un problema de sincronización');
+        final verifyDoc = await _firestore
+            .collection('users')
+            .doc(firebaseUser.uid)
+            .get();
+        
+        if (verifyDoc.exists) {
+          final data = verifyDoc.data();
+          debugPrint('   ✅ Usuario encontrado en Firestore');
+          debugPrint('   Nombre: ${data?['name']}');
+          debugPrint('   Rol: ${data?['role']}');
+        } else {
+          debugPrint('   ⚠️ ADVERTENCIA: El usuario no aparece en Firestore');
         }
       } catch (e) {
         debugPrint('⚠️ Error verificando usuario recién creado: $e');
@@ -207,18 +223,26 @@ class DebugHelper {
       final String fakeEmail = _generateFakeEmail(userName);
       debugPrint('📧 Email fake esperado: $fakeEmail');
 
-      // 1. Verificar en Firebase Authentication
+      // 1. Verificar en Firebase Authentication (intentar login)
       debugPrint('1️⃣ Verificando en Firebase Authentication...');
       try {
-        final methods = await _auth.fetchSignInMethodsForEmail(fakeEmail);
-        if (methods.isEmpty) {
-          debugPrint('   ❌ NO existe en Firebase Authentication');
+        // Intentar buscar el usuario en Firestore por email
+        final userQuery = await _firestore
+            .collection('users')
+            .where('email', isEqualTo: fakeEmail)
+            .limit(1)
+            .get();
+        
+        if (userQuery.docs.isEmpty) {
+          debugPrint('   ❌ NO existe en base de datos');
         } else {
-          debugPrint('   ✅ SÍ existe en Firebase Authentication');
-          debugPrint('   Métodos: ${methods.join(', ')}');
+          debugPrint('   ✅ SÍ existe en base de datos');
+          final userData = userQuery.docs.first.data();
+          debugPrint('   Email: ${userData['email']}');
+          debugPrint('   Rol: ${userData['role']}');
         }
       } catch (e) {
-        debugPrint('   ⚠️ Error verificando en Firebase Auth: $e');
+        debugPrint('   ⚠️ Error verificando en base de datos: $e');
       }
 
       // 2. Verificar en Firestore (solo si hay usuario autenticado)
@@ -271,12 +295,17 @@ class DebugHelper {
       final String fakeEmail = _generateFakeEmail(name);
       debugPrint('Email fake: $fakeEmail');
 
-      // 1. Primero verificar estado actual
-      final methods = await _auth.fetchSignInMethodsForEmail(fakeEmail);
-      debugPrint(
-          'Estado actual en Firebase Auth: ${methods.isEmpty ? 'NO EXISTE' : 'EXISTE'}');
+      // 1. Primero verificar estado actual en Firestore
+      final existingQuery = await _firestore
+          .collection('users')
+          .where('email', isEqualTo: fakeEmail)
+          .limit(1)
+          .get();
+      
+      final userExists = existingQuery.docs.isNotEmpty;
+      debugPrint('Estado actual en base de datos: ${userExists ? 'EXISTE' : 'NO EXISTE'}');
 
-      if (methods.isEmpty) {
+      if (!userExists) {
         debugPrint('🔄 El usuario no existe en Firebase Auth. Creando...');
 
         // 2. Crear en Firebase Authentication
@@ -315,19 +344,22 @@ class DebugHelper {
 
         // 5. Verificar que ahora funciona
         debugPrint('🔍 Verificando reparación...');
-        final verifyMethods = await _auth.fetchSignInMethodsForEmail(fakeEmail);
-        debugPrint(
-            'Estado después de reparación: ${verifyMethods.isEmpty ? 'AÚN NO EXISTE' : 'REPARADO'}');
-
-        if (verifyMethods.isNotEmpty) {
+        final verifyQuery = await _firestore
+            .collection('users')
+            .doc(firebaseUser.uid)
+            .get();
+        
+        if (verifyQuery.exists) {
+          debugPrint('Estado después de reparación: REPARADO');
           debugPrint('🎉 ¡Usuario reparado! Ahora debería poder hacer login');
         } else {
-          debugPrint(
-              '⚠️ El usuario sigue sin aparecer. Puede ser un problema de Firebase');
+          debugPrint('Estado después de reparación: AÚN TIENE PROBLEMAS');
+          debugPrint('⚠️ El usuario sigue sin aparecer. Puede ser un problema de Firebase');
         }
       } else {
-        debugPrint('✅ El usuario ya existe en Firebase Auth');
-        debugPrint('   Métodos disponibles: ${methods.join(', ')}');
+        debugPrint('✅ El usuario ya existe en la base de datos');
+        final userData = existingQuery.docs.first.data();
+        debugPrint('   Rol: ${userData['role']}');
         debugPrint('   No necesita reparación');
       }
     } catch (e) {

@@ -11,6 +11,8 @@ void main() {
       email: 'admin@example.com',
       name: 'Admin',
       role: 'admin',
+      username: 'admin',
+      hasPassword: true,
       createdAt: DateTime.now(),
     );
 
@@ -34,6 +36,8 @@ void main() {
       email: 'user@example.com',
       name: 'User',
       role: 'normal',
+      username: 'user',
+      hasPassword: false,
       createdAt: DateTime.now(),
     );
 

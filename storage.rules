@@ -1,0 +1,169 @@
+rules_version = '2';
+
+// Firebase Storage Security Rules para Sistema de Tareas
+// Proyecto: Marti-Notas
+// Última actualización: Enero 2024
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // ========================================
+    // FUNCIONES AUXILIARES
+    // ========================================
+    
+    // Verificar si el usuario está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Verificar si es el propietario del recurso
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Verificar si es admin (debe verificar en Firestore)
+    function isAdmin() {
+      return isAuthenticated() && 
+             get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Validar tamaño de archivo (10MB máximo)
+    function isValidSize() {
+      return request.resource.size <= 10 * 1024 * 1024;
+    }
+    
+    // Validar tipo de archivo para imágenes
+    function isValidImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    
+    // Validar tipo de archivo para documentos
+    function isValidDocument() {
+      return request.resource.contentType.matches('application/pdf') ||
+             request.resource.contentType.matches('application/msword') ||
+             request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.wordprocessingml.document') ||
+             request.resource.contentType.matches('application/vnd.ms-excel') ||
+             request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') ||
+             request.resource.contentType.matches('text/plain');
+    }
+    
+    // Validar que sea imagen o documento válido
+    function isValidFileType() {
+      return isValidImage() || isValidDocument();
+    }
+    
+    // ========================================
+    // REGLAS DE EVIDENCIA DE TAREAS
+    // ========================================
+    
+    // Archivos de evidencia de tareas
+    // Estructura: task_evidence/{userId}/{fileName}
+    match /task_evidence/{userId}/{fileName} {
+      
+      // LECTURA (READ):
+      // - El propietario puede leer sus archivos
+      // - Los admins pueden leer cualquier archivo
+      allow read: if isOwner(userId) || isAdmin();
+      
+      // ESCRITURA (WRITE):
+      // - Solo el propietario puede subir archivos a su carpeta
+      // - Debe ser un archivo válido (imagen o documento)
+      // - Debe respetar el límite de tamaño (10MB)
+      allow write: if isOwner(userId) && 
+                     isValidFileType() && 
+                     isValidSize();
+      
+      // ELIMINACIÓN (DELETE):
+      // - El propietario puede eliminar sus archivos
+      // - Los admins pueden eliminar cualquier archivo
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+    
+    // ========================================
+    // REGLAS DE IMÁGENES DE PERFIL (FUTURO)
+    // ========================================
+    
+    // Imágenes de perfil de usuarios
+    // Estructura: profile_pictures/{userId}/{fileName}
+    match /profile_pictures/{userId}/{fileName} {
+      
+      // LECTURA: Cualquier usuario autenticado puede ver perfiles
+      allow read: if isAuthenticated();
+      
+      // ESCRITURA: Solo el propietario puede actualizar su foto
+      // Debe ser imagen y máximo 5MB
+      allow write: if isOwner(userId) && 
+                     isValidImage() && 
+                     request.resource.size <= 5 * 1024 * 1024;
+      
+      // ELIMINACIÓN: Solo el propietario
+      allow delete: if isOwner(userId);
+    }
+    
+    // ========================================
+    // REGLAS DE ARCHIVOS DEL PROYECTO (FUTURO)
+    // ========================================
+    
+    // Archivos compartidos del proyecto
+    // Estructura: project_files/{projectId}/{fileName}
+    match /project_files/{projectId}/{fileName} {
+      
+      // LECTURA: Todos los usuarios autenticados
+      allow read: if isAuthenticated();
+      
+      // ESCRITURA: Solo admins
+      // Validar tipo y tamaño
+      allow write: if isAdmin() && 
+                     isValidFileType() && 
+                     request.resource.size <= 20 * 1024 * 1024;
+      
+      // ELIMINACIÓN: Solo admins
+      allow delete: if isAdmin();
+    }
+    
+    // ========================================
+    // REGLA POR DEFECTO (DENEGAR TODO)
+    // ========================================
+    
+    // Denegar acceso a cualquier otro path no especificado
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+// ========================================
+// NOTAS IMPORTANTES
+// ========================================
+//
+// 1. LÍMITES DE TAMAÑO:
+//    - Imágenes de evidencia: 10MB
+//    - Documentos de evidencia: 10MB
+//    - Imágenes de perfil: 5MB
+//    - Archivos de proyecto: 20MB
+//
+// 2. FORMATOS PERMITIDOS:
+//    - Imágenes: JPG, JPEG, PNG, GIF, BMP, WEBP
+//    - Documentos: PDF, DOC, DOCX, XLS, XLSX, TXT
+//
+// 3. VERIFICACIÓN DE ADMIN:
+//    - Se hace consulta a Firestore en cada operación
+//    - Asegurarse de que las reglas de Firestore permitan esta lectura
+//
+// 4. COSTOS:
+//    - Cada verificación isAdmin() cuenta como una lectura de Firestore
+//    - Considerar caché o simplificar si es necesario
+//
+// 5. TESTING:
+//    - Usar Firebase Storage Emulator para pruebas locales
+//    - Comando: firebase emulators:start --only storage
+//
+// 6. DEPLOY:
+//    - Comando: firebase deploy --only storage
+//    - Verificar en Firebase Console después del deploy
+//
+// 7. MONITOREO:
+//    - Revisar logs de Storage en Firebase Console
+//    - Activar alertas para accesos denegados sospechosos
+//
+// ========================================
