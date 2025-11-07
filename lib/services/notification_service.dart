@@ -4,12 +4,16 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
+import 'dart:async';
 import '../models/task_model.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
   static final FirebaseMessaging _fcm = FirebaseMessaging.instance;
+  
+  // Subscription para cancelar el listener onTokenRefresh
+  static StreamSubscription<String>? _tokenRefreshSubscription;
   
   static const String _channelId = 'task_notifications';
   static const String _channelName = 'Notificaciones de Tareas';
@@ -146,14 +150,22 @@ class NotificationService {
       }
 
       // Escuchar actualizaciones del token y añadir al array (evita duplicados automáticamente)
-      _fcm.onTokenRefresh.listen((newToken) async {
-        print('🔄 FCM Token actualizado: agregando al arreglo');
+      _tokenRefreshSubscription = _fcm.onTokenRefresh.listen((newToken) async {
+        print('🔄 FCM Token actualizado: verificando usuario actual');
         try {
-          final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+          // ⚠️ CRITICAL: Obtener usuario actual en el momento del refresh, no usar variable capturada
+          final currentUser = FirebaseAuth.instance.currentUser;
+          if (currentUser == null) {
+            print('⚠️ No hay usuario autenticado, no guardamos el token refresh');
+            return;
+          }
+          
+          final userRef = FirebaseFirestore.instance.collection('users').doc(currentUser.uid);
           await userRef.set({
             'fcmTokens': FieldValue.arrayUnion([newToken]),
             'fcmTokensUpdatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
+          print('✅ Token refresh guardado para usuario: ${currentUser.uid}');
         } catch (e) {
           print('❌ Error guardando nuevo token: $e');
         }
@@ -332,6 +344,13 @@ class NotificationService {
 
       final token = await _fcm.getToken();
       if (token == null) return;
+
+      // Cancelar el listener de token refresh para evitar que reinserte tokens
+      if (_tokenRefreshSubscription != null) {
+        await _tokenRefreshSubscription!.cancel();
+        _tokenRefreshSubscription = null;
+        print('✅ Listener de token refresh cancelado');
+      }
 
       await FirebaseFirestore.instance
           .collection('users')

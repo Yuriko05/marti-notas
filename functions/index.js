@@ -687,3 +687,80 @@ exports.sendTaskReviewRejectedNotification = onDocumentUpdated(
     },
 );
 
+// 🔒 Función para garantizar tokens únicos entre usuarios
+exports.ensureUniqueFcmTokens = onDocumentUpdated(
+    "users/{userId}",
+    async (event) => {
+      const after = event.data.after.data();
+      if (!after || !Array.isArray(after.fcmTokens) || after.fcmTokens.length === 0) {
+        return null;
+      }
+
+      const db = getFirestore();
+      const currentUserId = event.params.userId;
+      const newTokens = after.fcmTokens;
+
+      logger.info("ensureUniqueFcmTokens invoked", {
+        userId: currentUserId,
+        tokensCount: newTokens.length,
+      });
+
+      try {
+        // Buscar otros usuarios que tengan alguno de estos tokens
+        const usersQuery = await db.collection("users")
+            .where("fcmTokens", "array-contains-any", newTokens)
+            .get();
+
+        const batch = db.batch();
+        let conflictsFound = 0;
+
+        usersQuery.forEach((doc) => {
+          const userId = doc.id;
+          const userData = doc.data();
+
+          // No procesar el usuario actual
+          if (userId === currentUserId) return;
+
+          if (Array.isArray(userData.fcmTokens)) {
+            // Encontrar tokens duplicados
+            const duplicatedTokens = userData.fcmTokens.filter((token) =>
+              newTokens.includes(token),
+            );
+
+            if (duplicatedTokens.length > 0) {
+              conflictsFound++;
+              logger.info("Removing duplicated tokens", {
+                fromUser: userId,
+                tokens: duplicatedTokens,
+                movingToUser: currentUserId,
+              });
+
+              // Remover tokens duplicados del otro usuario
+              const updatedTokens = userData.fcmTokens.filter((token) =>
+                !duplicatedTokens.includes(token),
+              );
+
+              batch.update(doc.ref, {
+                fcmTokens: updatedTokens,
+                fcmTokensUpdatedAt: FieldValue.serverTimestamp(),
+              });
+            }
+          }
+        });
+
+        if (conflictsFound > 0) {
+          await batch.commit();
+          logger.info("Token conflicts resolved", {
+            conflictsResolved: conflictsFound,
+            newOwner: currentUserId,
+          });
+        }
+
+        return null;
+      } catch (error) {
+        logger.error("Error ensuring unique FCM tokens:", error);
+        return null;
+      }
+    },
+);
+

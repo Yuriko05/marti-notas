@@ -126,13 +126,37 @@ firebase functions:log --only sendTaskAssignedNotification
 
 - `lib/services/notification_service.dart`:
   - `_saveFCMToken()` ahora usa `FieldValue.arrayUnion([token])` para `fcmTokens`.
-  - `removeCurrentDeviceToken()` añadido (usa `FieldValue.arrayRemove([token])`).
-  - `onTokenRefresh` ahora agrega automáticamente nuevos tokens al array.
+  - **CRITICAL FIX (7 Nov 2025):** El listener `onTokenRefresh` ahora consulta `FirebaseAuth.instance.currentUser` en cada invocación en lugar de usar una variable capturada, evitando que tokens se reinserten en usuarios anteriores tras logout.
+  - `removeCurrentDeviceToken()` ahora cancela el listener de token refresh para evitar reinserciones.
+  - `onTokenRefresh` ahora agrega automáticamente nuevos tokens al array solo si hay usuario autenticado.
 
 - `functions/index.js`:
   - Se agregó `sendToTokensWithRetries(db, payload, tokens, userId)` que implementa retries y limpieza de tokens inválidos.
   - `sendTaskAssignedNotification`, `sendTaskRejectedNotification` y `sendTaskApprovedNotification` usan `fcmTokens` y la helper.
   - `createUser` crea perfiles con `fcmTokens: []`.
+  - **NUEVAS FUNCIONES (7 Nov 2025):**
+    - `sendTaskReassignedNotification` - reasignación de tarea
+    - `sendTaskReviewSubmittedNotification` - envío a revisión (usuario → admin)
+    - `sendTaskReviewApprovedNotification` - aprobación tras revisión
+    - `sendTaskReviewRejectedNotification` - rechazo en revisión
+    - `ensureUniqueFcmTokens` - garantiza tokens únicos entre usuarios (elimina duplicados automáticamente)
+
+## 6.1) Corrección crítica del problema de tokens duplicados (7 Nov 2025)
+
+### **Problema identificado:**
+El listener `onTokenRefresh` capturaba el usuario en una variable cerrada al momento de la llamada y no se actualizaba durante logout/login. Cuando se llamaba a `deleteToken()` durante logout, Firebase generaba un nuevo token, el listener se ejecutaba y volvía a escribir ese token en el documento del usuario anterior.
+
+### **Solución implementada:**
+1. **Consulta dinámica del usuario:** El listener ahora llama a `FirebaseAuth.instance.currentUser` en cada ejecución.
+2. **Validación de sesión:** Si no hay usuario autenticado, el callback no guarda nada.
+3. **Cancelación del listener:** `removeCurrentDeviceToken()` cancela la suscripción antes de eliminar el token.
+4. **Cloud Function de unicidad:** `ensureUniqueFcmTokens` elimina automáticamente tokens duplicados entre usuarios.
+
+### **Flujo corregido:**
+- Login de "yuri" → se añade su token a `fcmTokens`
+- Logout de "yuri" → se cancela listener, elimina token y lo invalida localmente
+- Login de "admin" → nuevo listener, nuevo token solo se añade al documento de admin
+- `ensureUniqueFcmTokens` limpia cualquier token duplicado automáticamente
 
 ## 7) Nota sobre eliminación de archivos .md
 
