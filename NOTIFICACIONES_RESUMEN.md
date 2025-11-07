@@ -36,6 +36,11 @@ Este documento consolida la implementación actual, los cambios aplicados en el 
   - Soporte a `fcmTokens` (array) y multicast
   - Helper `sendToTokensWithRetries` con retries y limpieza de tokens inválidos
   - `createUser` crea perfil con `fcmTokens: []`
+  - **NUEVAS FUNCIONES (7 Nov 2025):**
+    - `sendTaskReassignedNotification` - reasignación de tarea
+    - `sendTaskReviewSubmittedNotification` - envío a revisión (usuario → admin)
+    - `sendTaskReviewApprovedNotification` - aprobación tras revisión
+    - `sendTaskReviewRejectedNotification` - rechazo en revisión
 
 - firestore.rules
   - Añadida nota descriptiva sobre `fcmTokens` y permisos
@@ -44,6 +49,32 @@ Este documento consolida la implementación actual, los cambios aplicados en el 
 - PUSH_NOTIFICATIONS_TODO.md (marcado como consolidado)
 
 > Nota: Algunos archivos Markdown históricos relacionados con notificaciones se marcaron como "consolidado" y su contenido quedó reducido; el contenido actualizado está en este archivo.
+
+## 2.1) Nuevos eventos de notificación (7 Nov 2025)
+
+### 🔄 Reasignación de tarea (`task_reassigned`)
+- **Trigger:** Cambio en campo `assignedTo` de un documento de tarea
+- **Destinatario:** Nuevo usuario asignado
+- **Mensaje:** "{adminName} te reasignó la tarea '{title}'"
+- **Datos:** taskId, type="task_reassigned", priority
+
+### 📥 Envío a revisión (`task_review_submitted`) 
+- **Trigger:** Cambio de estado a `pending_review`
+- **Destinatario:** Todos los usuarios con rol `admin`
+- **Mensaje:** "{userName} envió la tarea '{title}' para revisión"
+- **Datos:** taskId, type="task_review_submitted"
+
+### ✅ Aprobación de revisión (`task_review_approved`)
+- **Trigger:** Cambio de `pending_review` → `completed`
+- **Destinatario:** Usuario asignado a la tarea
+- **Mensaje:** "Tu tarea '{title}' fue aprobada por el admin"
+- **Datos:** taskId, type="task_review_approved"
+
+### ❌ Rechazo de revisión (`task_review_rejected`)
+- **Trigger:** Cambio de `pending_review` → `in_progress`
+- **Destinatario:** Usuario asignado a la tarea
+- **Mensaje:** "Tu tarea '{title}' fue rechazada; revisa los comentarios del admin"
+- **Datos:** taskId, type="task_review_rejected"
 
 ## 3) Qué acciones debes ejecutar para desplegar y verificar
 

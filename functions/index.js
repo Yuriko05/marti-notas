@@ -476,3 +476,214 @@ exports.createUser = onCall(async (request) => {
   }
 });
 
+// 🔄 Notificación de reasignación de tarea
+exports.sendTaskReassignedNotification = onDocumentUpdated(
+    "tasks/{taskId}",
+    async (event) => {
+      const before = event.data.before.data();
+      const after = event.data.after.data();
+      if (!before || !after) return null;
+
+      // Detectar cambio de asignación
+      if (before.assignedTo !== after.assignedTo) {
+        const db = getFirestore();
+        logger.info("sendTaskReassignedNotification invoked", {
+          taskId: event.params.taskId,
+          before: {assignedTo: before.assignedTo},
+          after: {assignedTo: after.assignedTo},
+        });
+
+        try {
+          // Obtener tokens del nuevo usuario
+          const userDoc = await db.collection("users").doc(after.assignedTo).get();
+          const userData = userDoc.data();
+          const tokens = (userData && Array.isArray(userData.fcmTokens))
+            ? userData.fcmTokens
+            : (userData && userData.fcmToken ? [userData.fcmToken] : []);
+
+          if (!tokens.length) {
+            logger.warn("No tokens found for reassigned user", {userId: after.assignedTo});
+            return null;
+          }
+
+          const adminDoc = await db.collection("users").doc(after.createdBy).get();
+          const adminData = adminDoc.data();
+          const adminName = (adminData && adminData.name) ? adminData.name : "Admin";
+
+          const payload = {
+            notification: {
+              title: "📋 Tarea reasignada",
+              body: `${adminName} te reasignó la tarea "${after.title}"`,
+            },
+            data: {
+              taskId: event.params.taskId,
+              type: "task_reassigned",
+              priority: after.priority || "medium",
+            },
+          };
+
+          return await sendToTokensWithRetries(db, payload, tokens, after.assignedTo);
+        } catch (error) {
+          logger.error("Error sending task reassigned notification:", error);
+          return null;
+        }
+      }
+      return null;
+    },
+);
+
+// 📥 Notificación de envío a revisión (usuario → admin)
+exports.sendTaskReviewSubmittedNotification = onDocumentUpdated(
+    "tasks/{taskId}",
+    async (event) => {
+      const before = event.data.before.data();
+      const after = event.data.after.data();
+      if (!before || !after) return null;
+
+      // Cambio de estado a 'pending_review'
+      if (before.status !== "pending_review" && after.status === "pending_review") {
+        const db = getFirestore();
+        logger.info("sendTaskReviewSubmittedNotification invoked", {
+          taskId: event.params.taskId,
+          before: {status: before.status},
+          after: {status: after.status},
+        });
+
+        try {
+          // Obtener todos los admin
+          const adminsSnap = await db.collection("users").where("role", "==", "admin").get();
+          const tokens = [];
+          adminsSnap.forEach((doc) => {
+            const data = doc.data();
+            if (Array.isArray(data.fcmTokens)) tokens.push(...data.fcmTokens);
+            else if (data.fcmToken) tokens.push(data.fcmToken);
+          });
+
+          if (!tokens.length) {
+            logger.warn("No admin tokens found for review submission");
+            return null;
+          }
+
+          // Mensaje a admins
+          const userSnap = await db.collection("users").doc(after.assignedTo).get();
+          const userData = userSnap.data();
+          const userName = (userData && userData.name) ? userData.name : "Un usuario";
+          const payload = {
+            notification: {
+              title: "📥 Tarea enviada para revisión",
+              body: `${userName} envió la tarea "${after.title}" para revisión`,
+            },
+            data: {
+              taskId: event.params.taskId,
+              type: "task_review_submitted",
+            },
+          };
+
+          return await sendToTokensWithRetries(db, payload, tokens);
+        } catch (error) {
+          logger.error("Error sending task review submitted notification:", error);
+          return null;
+        }
+      }
+      return null;
+    },
+);
+
+// ✅ Notificación de aprobación tras revisión
+exports.sendTaskReviewApprovedNotification = onDocumentUpdated(
+    "tasks/{taskId}",
+    async (event) => {
+      const before = event.data.before.data();
+      const after = event.data.after.data();
+      if (!before || !after) return null;
+
+      if (before.status === "pending_review" && after.status === "completed") {
+        const db = getFirestore();
+        logger.info("sendTaskReviewApprovedNotification invoked", {
+          taskId: event.params.taskId,
+          before: {status: before.status},
+          after: {status: after.status},
+        });
+
+        try {
+          const userDoc = await db.collection("users").doc(after.assignedTo).get();
+          const userData = userDoc.data();
+          const tokens = (userData && Array.isArray(userData.fcmTokens))
+            ? userData.fcmTokens
+            : (userData && userData.fcmToken ? [userData.fcmToken] : []);
+
+          if (!tokens.length) {
+            logger.warn("No tokens found for approved user", {userId: after.assignedTo});
+            return null;
+          }
+
+          const payload = {
+            notification: {
+              title: "✅ Tarea aprobada",
+              body: `Tu tarea "${after.title}" fue aprobada por el admin`,
+            },
+            data: {
+              taskId: event.params.taskId,
+              type: "task_review_approved",
+            },
+          };
+
+          return await sendToTokensWithRetries(db, payload, tokens, after.assignedTo);
+        } catch (error) {
+          logger.error("Error sending task review approved notification:", error);
+          return null;
+        }
+      }
+      return null;
+    },
+);
+
+// ❌ Notificación de rechazo en revisión
+exports.sendTaskReviewRejectedNotification = onDocumentUpdated(
+    "tasks/{taskId}",
+    async (event) => {
+      const before = event.data.before.data();
+      const after = event.data.after.data();
+      if (!before || !after) return null;
+
+      if (before.status === "pending_review" && after.status === "in_progress") {
+        const db = getFirestore();
+        logger.info("sendTaskReviewRejectedNotification invoked", {
+          taskId: event.params.taskId,
+          before: {status: before.status},
+          after: {status: after.status},
+        });
+
+        try {
+          const userDoc = await db.collection("users").doc(after.assignedTo).get();
+          const userData = userDoc.data();
+          const tokens = (userData && Array.isArray(userData.fcmTokens))
+            ? userData.fcmTokens
+            : (userData && userData.fcmToken ? [userData.fcmToken] : []);
+
+          if (!tokens.length) {
+            logger.warn("No tokens found for rejected review user", {userId: after.assignedTo});
+            return null;
+          }
+
+          const payload = {
+            notification: {
+              title: "❌ Revisión rechazada",
+              body: `Tu tarea "${after.title}" fue rechazada; revisa los comentarios del admin`,
+            },
+            data: {
+              taskId: event.params.taskId,
+              type: "task_review_rejected",
+            },
+          };
+
+          return await sendToTokensWithRetries(db, payload, tokens, after.assignedTo);
+        } catch (error) {
+          logger.error("Error sending task review rejected notification:", error);
+          return null;
+        }
+      }
+      return null;
+    },
+);
+
