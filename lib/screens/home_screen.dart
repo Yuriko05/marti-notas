@@ -12,8 +12,15 @@ import 'home/home_user_view.dart';
 /// Muestra diferentes vistas según el rol del usuario
 class HomeScreen extends StatefulWidget {
   final UserModel user;
+  final Widget Function(UserModel user)? adminViewBuilder;
+  final Widget Function(UserModel user)? userViewBuilder;
 
-  const HomeScreen({super.key, required this.user});
+  const HomeScreen({
+    super.key,
+    required this.user,
+    this.adminViewBuilder,
+    this.userViewBuilder,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -91,14 +98,17 @@ class _HomeScreenState extends State<HomeScreen>
 
   /// Contenido animado según el rol del usuario
   Widget _buildAnimatedContent() {
+    final adminView = widget.adminViewBuilder?.call(widget.user) ??
+        HomeAdminView(user: widget.user);
+    final userView = widget.userViewBuilder?.call(widget.user) ??
+        HomeUserView(user: widget.user);
+
     return AnimatedBuilder(
       animation: _animationController,
       builder: (context, child) {
         return FadeTransition(
           opacity: _fadeAnimation,
-          child: widget.user.isAdmin
-              ? HomeAdminView(user: widget.user)
-              : HomeUserView(user: widget.user),
+          child: widget.user.isAdmin ? adminView : userView,
         );
       },
     );

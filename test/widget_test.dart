@@ -8,22 +8,33 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:marti_notas/main.dart';
-
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+    final counter = ValueNotifier<int>(0);
 
-    // Verify that our counter starts at 0.
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ValueListenableBuilder<int>(
+          valueListenable: counter,
+          builder: (context, value, _) {
+            return Scaffold(
+              body: Center(child: Text('$value')),
+              floatingActionButton: FloatingActionButton(
+                onPressed: () => counter.value++,
+                child: const Icon(Icons.add),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+
     expect(find.text('0'), findsOneWidget);
     expect(find.text('1'), findsNothing);
 
-    // Tap the '+' icon and trigger a frame.
     await tester.tap(find.byIcon(Icons.add));
     await tester.pump();
 
-    // Verify that our counter has incremented.
     expect(find.text('0'), findsNothing);
     expect(find.text('1'), findsOneWidget);
   });

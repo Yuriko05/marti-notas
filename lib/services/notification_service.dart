@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -12,7 +13,18 @@ import '../models/task_status.dart';
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
-  static final FirebaseMessaging _fcm = FirebaseMessaging.instance;
+
+  static FirebaseMessaging? _messagingOverride;
+  static FirebaseFirestore? _firestoreOverride;
+  static FirebaseAuth? _authOverride;
+
+  static FirebaseMessaging get _messaging =>
+      _messagingOverride ?? FirebaseMessaging.instance;
+
+  static FirebaseFirestore get _firestore =>
+      _firestoreOverride ?? FirebaseFirestore.instance;
+
+  static FirebaseAuth get _auth => _authOverride ?? FirebaseAuth.instance;
   
   // Subscription para cancelar el listener onTokenRefresh
   static StreamSubscription<String>? _tokenRefreshSubscription;
@@ -21,6 +33,32 @@ class NotificationService {
   static const String _channelName = 'Notificaciones de Tareas';
   static const String _channelDescription =
       'Notificaciones para tareas y recordatorios';
+
+  static String _formatTokenPreview(String token) {
+    const previewLength = 20;
+    if (token.length <= previewLength) {
+      return token;
+    }
+    return '${token.substring(0, previewLength)}...';
+  }
+
+  @visibleForTesting
+  static void setTestOverrides({
+    FirebaseMessaging? messaging,
+    FirebaseFirestore? firestore,
+    FirebaseAuth? auth,
+  }) {
+    _messagingOverride = messaging;
+    _firestoreOverride = firestore;
+    _authOverride = auth;
+  }
+
+  @visibleForTesting
+  static void resetTestOverrides() {
+    _messagingOverride = null;
+    _firestoreOverride = null;
+    _authOverride = null;
+  }
 
   /// Handler estático para mensajes en segundo plano - llamado desde main.dart
   static Future<void> handleBackgroundMessage(RemoteMessage message) async {
@@ -80,7 +118,7 @@ class NotificationService {
   static Future<void> _initializeFCM() async {
     try {
       // Solicitar permisos de notificaciones push
-      NotificationSettings settings = await _fcm.requestPermission(
+  NotificationSettings settings = await _messaging.requestPermission(
         alert: true,
         badge: true,
         sound: true,
@@ -116,7 +154,7 @@ class NotificationService {
         });
 
         // Manejar si la app se abrió desde una notificación (app cerrada)
-        RemoteMessage? initialMessage = await _fcm.getInitialMessage();
+  RemoteMessage? initialMessage = await _messaging.getInitialMessage();
         if (initialMessage != null) {
           print('📱 App abierta desde notificación (cerrada): ${initialMessage.messageId}');
           _handleNotificationTap(initialMessage.data);
@@ -134,12 +172,12 @@ class NotificationService {
   /// Guardar FCM token en Firestore
   static Future<void> _saveFCMToken() async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
+  final user = _auth.currentUser;
       if (user == null) return;
       // Guardar token como un array para soportar múltiples dispositivos por usuario
-      final token = await _fcm.getToken();
+  final token = await _messaging.getToken();
       if (token != null) {
-        await FirebaseFirestore.instance
+    await _firestore
             .collection('users')
             .doc(user.uid)
             .set({
@@ -148,21 +186,24 @@ class NotificationService {
           'fcmTokensUpdatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
 
-        print('✅ FCM Token agregado a fcmTokens: ${token.substring(0, 20)}... (set merge)');
+  final preview = _formatTokenPreview(token);
+  print('✅ FCM Token agregado a fcmTokens: $preview (set merge)');
       }
 
       // Escuchar actualizaciones del token y añadir al array (evita duplicados automáticamente)
-      _tokenRefreshSubscription = _fcm.onTokenRefresh.listen((newToken) async {
+    _tokenRefreshSubscription =
+      _messaging.onTokenRefresh.listen((newToken) async {
         print('🔄 FCM Token actualizado: verificando usuario actual');
         try {
           // ⚠️ CRITICAL: Obtener usuario actual en el momento del refresh, no usar variable capturada
-          final currentUser = FirebaseAuth.instance.currentUser;
+          final currentUser = _auth.currentUser;
           if (currentUser == null) {
             print('⚠️ No hay usuario autenticado, no guardamos el token refresh');
             return;
           }
           
-          final userRef = FirebaseFirestore.instance.collection('users').doc(currentUser.uid);
+      final userRef =
+        _firestore.collection('users').doc(currentUser.uid);
           await userRef.set({
             'fcmTokens': FieldValue.arrayUnion([newToken]),
             'fcmTokensUpdatedAt': FieldValue.serverTimestamp(),
@@ -186,7 +227,7 @@ class NotificationService {
   /// Obtener el FCM token del usuario actual
   static Future<String?> getFCMToken() async {
     try {
-      return await _fcm.getToken();
+  return await _messaging.getToken();
     } catch (e) {
       print('❌ Error obteniendo FCM token: $e');
       return null;
@@ -341,10 +382,10 @@ class NotificationService {
   /// Eliminar token FCM del array del usuario (usado al hacer logout)
   static Future<void> removeCurrentDeviceToken() async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
+  final user = _auth.currentUser;
       if (user == null) return;
 
-      final token = await _fcm.getToken();
+  final token = await _messaging.getToken();
       if (token == null) return;
 
       // Cancelar el listener de token refresh para evitar que reinserte tokens
@@ -354,7 +395,7 @@ class NotificationService {
         print('✅ Listener de token refresh cancelado');
       }
 
-      await FirebaseFirestore.instance
+    await _firestore
           .collection('users')
           .doc(user.uid)
           .set({
@@ -363,7 +404,7 @@ class NotificationService {
 
       // Intentar eliminar el token localmente para forzar un token nuevo en próximas sesiones
       try {
-        await _fcm.deleteToken();
+  await _messaging.deleteToken();
       } catch (e) {
         print('⚠️ No se pudo eliminar el token localmente: $e');
       }
@@ -403,12 +444,12 @@ class NotificationService {
 
   /// Programar notificaciones de vencimiento para las tareas del usuario
   static Future<void> scheduleTaskDueNotifications() async {
-    final user = FirebaseAuth.instance.currentUser;
+  final user = _auth.currentUser;
     if (user == null) return;
 
     try {
       // Simplificar consulta - solo buscar por assignedTo y filtrar después
-    final tasksQuery = await FirebaseFirestore.instance
+    final tasksQuery = await _firestore
       .collection(FirestoreCollections.tasks)
           .where('assignedTo', isEqualTo: user.uid)
           .get();
@@ -466,12 +507,12 @@ class NotificationService {
   /// Verificar nuevas tareas asignadas al iniciar sesión
   /// Esta función verifica tareas creadas recientemente, NO es inmediata
   static Future<void> checkForNewAssignedTasks() async {
-    final user = FirebaseAuth.instance.currentUser;
+  final user = _auth.currentUser;
     if (user == null) return;
 
     try {
       // Consulta simple solo por assignedTo para evitar índices
-    final tasksQuery = await FirebaseFirestore.instance
+    final tasksQuery = await _firestore
       .collection(FirestoreCollections.tasks)
           .where('assignedTo', isEqualTo: user.uid)
           .get();
@@ -527,11 +568,11 @@ class NotificationService {
 
   /// Limpiar notificaciones de tareas completadas
   static Future<void> cleanupCompletedTaskNotifications() async {
-    final user = FirebaseAuth.instance.currentUser;
+  final user = _auth.currentUser;
     if (user == null) return;
 
     // Obtener tareas completadas
-  final completedTasksQuery = await FirebaseFirestore.instance
+  final completedTasksQuery = await _firestore
     .collection(FirestoreCollections.tasks)
         .where('assignedTo', isEqualTo: user.uid)
     .where('status', isEqualTo: TaskStatus.completed.value)

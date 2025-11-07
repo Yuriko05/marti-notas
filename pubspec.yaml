@@ -49,6 +49,8 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^3.0.0
   flutterfire_cli: ^1.3.1
+  mocktail: ^1.0.3
+  fake_cloud_firestore: ^4.0.0
 
   # Dependencia para personalizar íconos
   flutter_launcher_icons: ^0.13.1

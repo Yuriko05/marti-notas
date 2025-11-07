@@ -23,6 +23,8 @@ Este documento consolida la implementación actual, los cambios aplicados en el 
   - tras un login exitoso se llama a `NotificationService.registerCurrentDeviceToken()` y `NotificationService.setupLoginNotifications()`;
   - antes de cerrar sesión se llama a `NotificationService.removeCurrentDeviceToken()` para quitar el token del array y borrar el token localmente (llamando `FirebaseMessaging.deleteToken()`).
 
+- **Paso 6 - pruebas automatizadas:** `NotificationService` expone `setTestOverrides`/`resetTestOverrides` para inyectar dependencias fake durante tests y se añadió un log seguro de tokens para evitar `RangeError` cuando el token es corto.
+
 - Firestore rules: se añadió documentación/nota en `firestore.rules` explicando `fcmTokens` y recordando que sólo admins o el propio usuario acceden al documento. Las reglas existentes ya previenen que otros usuarios vean tokens ajenos.
 
 ## 2) Archivos modificados
@@ -130,6 +132,7 @@ firebase functions:log --only sendTaskAssignedNotification
   - **CRITICAL FIX (7 Nov 2025):** El listener `onTokenRefresh` ahora consulta `FirebaseAuth.instance.currentUser` en cada invocación en lugar de usar una variable capturada, evitando que tokens se reinserten en usuarios anteriores tras logout.
   - `removeCurrentDeviceToken()` ahora cancela el listener de token refresh para evitar reinserciones.
   - `onTokenRefresh` ahora agrega automáticamente nuevos tokens al array solo si hay usuario autenticado.
+  - `setTestOverrides` y `resetTestOverrides` permiten inyectar `FakeFirebaseFirestore`/mocks durante pruebas unitarias y `_formatTokenPreview()` recorta tokens de manera segura antes de loguearlos.
 
 - `functions/index.js`:
   - Se agregó `sendToTokensWithRetries(db, payload, tokens, userId)` que implementa retries y limpieza de tokens inválidos.
@@ -159,7 +162,14 @@ El listener `onTokenRefresh` capturaba el usuario en una variable cerrada al mom
 - Login de "admin" → nuevo listener, nuevo token solo se añade al documento de admin
 - `ensureUniqueFcmTokens` limpia cualquier token duplicado automáticamente
 
-## 7) Nota sobre eliminación de archivos .md
+## 7) Cobertura de pruebas automatizadas (actualizado Paso 6)
+
+- `test/services/notification_service_test.dart` valida registro de token, escucha de `onTokenRefresh` y borrado de tokens usando `FakeFirebaseFirestore` + mocks inyectados vía `setTestOverrides`.
+- `test/models/task_model_test.dart` usa `Timestamp.fromDate` para asegurar que la serialización/deserialización maneja tipos Firestore reales (incluye comentarios incrustados).
+- `test/services/user_repository_test.dart` confirma normalización de nombres con acentos, actualizaciones y consultas; ayuda a verificar `_stripDiacritics` y la conversión a `FieldValue.serverTimestamp()`.
+- `test/widget_test.dart` mantiene una prueba rápida de interacción UI reemplazando dependencias Firebase por un `ValueNotifier`, acelerando la suite.
+
+## 8) Nota sobre eliminación de archivos .md
 
 Por seguridad y rastreabilidad no eliminé físicamente los archivos existentes; en su lugar los marqué como "consolidado" (su contenido reducido) y centralicé la documentación en este archivo `NOTIFICACIONES_RESUMEN.md`.
 

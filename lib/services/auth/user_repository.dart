@@ -171,11 +171,123 @@ class UserRepository {
   /// Normaliza un nombre para usarlo como `username` en Firestore.
   /// Convenciones: lowercase, sin espacios, solo a-z0-9.
   String _normalizeName(String name) {
-    return name
-        .toLowerCase()
-        .trim()
+    final lower = name.toLowerCase().trim();
+    final withoutDiacritics = _stripDiacritics(lower);
+    return withoutDiacritics
         .replaceAll(RegExp(r'\s+'), '')
         .replaceAll(RegExp(r'[^a-z0-9]'), '');
+  }
+
+  String _stripDiacritics(String input) {
+    const Map<String, String> mapping = {
+      'á': 'a',
+      'à': 'a',
+      'ä': 'a',
+      'â': 'a',
+      'ã': 'a',
+      'å': 'a',
+      'ă': 'a',
+      'ą': 'a',
+      'Á': 'a',
+      'À': 'a',
+      'Ä': 'a',
+      'Â': 'a',
+      'Ã': 'a',
+      'Å': 'a',
+      'Ă': 'a',
+      'Ą': 'a',
+      'č': 'c',
+      'ć': 'c',
+      'ç': 'c',
+      'Č': 'c',
+      'Ć': 'c',
+      'Ç': 'c',
+      'ď': 'd',
+      'đ': 'd',
+      'Ď': 'd',
+      'Đ': 'd',
+      'é': 'e',
+      'è': 'e',
+      'ë': 'e',
+      'ê': 'e',
+      'ě': 'e',
+      'ę': 'e',
+      'É': 'e',
+      'È': 'e',
+      'Ë': 'e',
+      'Ê': 'e',
+      'Ě': 'e',
+      'Ę': 'e',
+      'í': 'i',
+      'ì': 'i',
+      'ï': 'i',
+      'î': 'i',
+      'Í': 'i',
+      'Ì': 'i',
+      'Ï': 'i',
+      'Î': 'i',
+      'ĺ': 'l',
+      'ľ': 'l',
+      'ł': 'l',
+      'Ĺ': 'l',
+      'Ľ': 'l',
+      'Ł': 'l',
+      'ñ': 'n',
+      'ń': 'n',
+      'Ñ': 'n',
+      'Ń': 'n',
+      'ó': 'o',
+      'ò': 'o',
+      'ö': 'o',
+      'ô': 'o',
+      'õ': 'o',
+      'ő': 'o',
+      'Ó': 'o',
+      'Ò': 'o',
+      'Ö': 'o',
+      'Ô': 'o',
+      'Õ': 'o',
+      'Ő': 'o',
+      'ř': 'r',
+      'Ř': 'r',
+      'ś': 's',
+      'ș': 's',
+      'š': 's',
+      'Ś': 's',
+      'Ș': 's',
+      'Š': 's',
+      'ť': 't',
+      'Ť': 't',
+      'ú': 'u',
+      'ù': 'u',
+      'ü': 'u',
+      'û': 'u',
+      'ů': 'u',
+      'ű': 'u',
+      'Ú': 'u',
+      'Ù': 'u',
+      'Ü': 'u',
+      'Û': 'u',
+      'Ů': 'u',
+      'Ű': 'u',
+      'ý': 'y',
+      'ÿ': 'y',
+      'Ý': 'y',
+      'Ÿ': 'y',
+      'ź': 'z',
+      'ż': 'z',
+      'ž': 'z',
+      'Ź': 'z',
+      'Ż': 'z',
+      'Ž': 'z',
+    };
+
+    final buffer = StringBuffer();
+    for (final rune in input.runes) {
+      final char = String.fromCharCode(rune);
+      buffer.write(mapping[char] ?? char);
+    }
+    return buffer.toString();
   }
 
   /// Obtener todos los usuarios (para panel admin)

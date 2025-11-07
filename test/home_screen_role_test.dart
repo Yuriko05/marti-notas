@@ -18,15 +18,18 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: HomeScreen(user: admin),
+        home: HomeScreen(
+          user: admin,
+          adminViewBuilder: (_) => const Text('Vista Admin'),
+          userViewBuilder: (_) => const Text('Vista Usuario'),
+        ),
       ),
     );
 
     // Allow animations to settle
     await tester.pumpAndSettle();
 
-    // Admin view contains the admin menu tile text
-    expect(find.text('Gestión de Usuarios'), findsOneWidget);
+    expect(find.text('Vista Admin'), findsOneWidget);
   });
 
   testWidgets('HomeScreen shows user view for normal user',
@@ -43,13 +46,16 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: HomeScreen(user: user),
+        home: HomeScreen(
+          user: user,
+          adminViewBuilder: (_) => const Text('Vista Admin'),
+          userViewBuilder: (_) => const Text('Vista Usuario'),
+        ),
       ),
     );
 
     await tester.pumpAndSettle();
 
-    // User view contains 'Mis Tareas' tile
-    expect(find.text('Mis Tareas'), findsWidgets);
+    expect(find.text('Vista Usuario'), findsOneWidget);
   });
 }

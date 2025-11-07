@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import '../../constants/firestore_collections.dart';
 import '../../models/task_model.dart';
 import '../../models/task_status.dart';
@@ -10,10 +11,30 @@ import '../notification_service.dart';
 /// Maneja la creación y mantenimiento de tareas asignadas,
 /// incluidas las tareas personales del usuario.
 class TaskAssignmentService {
-  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  static final FirebaseAuth _auth = FirebaseAuth.instance;
+  static FirebaseFirestore? _firestoreOverride;
+  static FirebaseAuth? _authOverride;
+
+  static FirebaseFirestore get _firestore =>
+      _firestoreOverride ?? FirebaseFirestore.instance;
+
+  static FirebaseAuth get _auth => _authOverride ?? FirebaseAuth.instance;
 
   const TaskAssignmentService._();
+
+  @visibleForTesting
+  static void setTestOverrides({
+    FirebaseFirestore? firestore,
+    FirebaseAuth? auth,
+  }) {
+    _firestoreOverride = firestore;
+    _authOverride = auth;
+  }
+
+  @visibleForTesting
+  static void resetTestOverrides() {
+    _firestoreOverride = null;
+    _authOverride = null;
+  }
 
   /// Crea una tarea personal para el usuario autenticado.
   static Future<String?> createPersonalTask({
