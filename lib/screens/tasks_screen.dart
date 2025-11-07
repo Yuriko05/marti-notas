@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../models/task_model.dart';
+import '../models/task_status.dart';
 import '../services/task_service.dart';
 import '../services/task_cleanup_service.dart';
 import '../theme/app_theme.dart';
@@ -155,21 +156,21 @@ class _TasksScreenState extends State<TasksScreen>
             children: [
               TaskList(
                 userId: widget.user.uid,
-                status: 'pending',
+                status: TaskStatus.pending,
                 fadeAnimation: _fadeAnimation,
                 searchQuery: searchQuery,
                 priorityFilter: priorityFilter,
               ),
               TaskList(
                 userId: widget.user.uid,
-                status: 'in_progress',
+                status: TaskStatus.inProgress,
                 fadeAnimation: _fadeAnimation,
                 searchQuery: searchQuery,
                 priorityFilter: priorityFilter,
               ),
               TaskList(
                 userId: widget.user.uid,
-                status: 'completed',
+                status: TaskStatus.completed,
                 fadeAnimation: _fadeAnimation,
                 searchQuery: searchQuery,
                 priorityFilter: priorityFilter,
@@ -216,21 +217,21 @@ class _TasksScreenState extends State<TasksScreen>
             children: [
               TaskList(
                 userId: widget.user.uid,
-                status: 'pending',
+                status: TaskStatus.pending,
                 fadeAnimation: _fadeAnimation,
                 searchQuery: searchQuery,
                 priorityFilter: priorityFilter,
               ),
               TaskList(
                 userId: widget.user.uid,
-                status: 'in_progress',
+                status: TaskStatus.inProgress,
                 fadeAnimation: _fadeAnimation,
                 searchQuery: searchQuery,
                 priorityFilter: priorityFilter,
               ),
               TaskList(
                 userId: widget.user.uid,
-                status: 'completed',
+                status: TaskStatus.completed,
                 fadeAnimation: _fadeAnimation,
                 searchQuery: searchQuery,
                 priorityFilter: priorityFilter,

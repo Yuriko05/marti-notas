@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../constants/firestore_collections.dart';
 import '../models/user_model.dart';
 import '../models/task_model.dart';
+import '../models/task_status.dart';
 import '../services/auth_service.dart';
 import 'history_service.dart';
 import 'cloud_functions_service.dart';
@@ -93,15 +95,17 @@ class AdminService {
         throw Exception('No hay usuario autenticado');
       }
 
-      final currentUserDoc =
-          await _firestore.collection('users').doc(currentUser.uid).get();
+      final currentUserDoc = await _firestore
+          .collection(FirestoreCollections.users)
+          .doc(currentUser.uid)
+          .get();
 
       if (!currentUserDoc.exists || currentUserDoc.data()?['role'] != 'admin') {
         throw Exception('No tienes permisos de administrador');
       }
 
       final querySnapshot = await _firestore
-          .collection('users')
+          .collection(FirestoreCollections.users)
           .orderBy('createdAt', descending: true)
           .get();
 
@@ -124,14 +128,19 @@ class AdminService {
       final currentUser = AuthService.currentUser;
       if (currentUser == null) return false;
 
-      final currentUserDoc =
-          await _firestore.collection('users').doc(currentUser.uid).get();
+  final currentUserDoc = await _firestore
+      .collection(FirestoreCollections.users)
+      .doc(currentUser.uid)
+      .get();
 
       if (!currentUserDoc.exists || currentUserDoc.data()?['role'] != 'admin') {
         return false;
       }
 
-      await _firestore.collection('users').doc(userId).update({
+      await _firestore
+          .collection(FirestoreCollections.users)
+          .doc(userId)
+          .update({
         'name': name,
         'role': role,
         'updatedAt': FieldValue.serverTimestamp(),
@@ -157,8 +166,10 @@ class AdminService {
 
       print('✅ Usuario actual autenticado: ${currentUser.uid}');
 
-      final currentUserDoc =
-          await _firestore.collection('users').doc(currentUser.uid).get();
+      final currentUserDoc = await _firestore
+          .collection(FirestoreCollections.users)
+          .doc(currentUser.uid)
+          .get();
 
       if (!currentUserDoc.exists) {
         print('❌ Error: Documento del usuario actual no existe');
@@ -181,8 +192,10 @@ class AdminService {
       }
 
       print('🔍 Verificando que el usuario a eliminar existe...');
-      final userToDeleteDoc =
-          await _firestore.collection('users').doc(userId).get();
+    final userToDeleteDoc = await _firestore
+      .collection(FirestoreCollections.users)
+      .doc(userId)
+      .get();
 
       if (!userToDeleteDoc.exists) {
         print('❌ Error: El usuario a eliminar no existe');
@@ -229,22 +242,26 @@ class AdminService {
       final currentUser = AuthService.currentUser;
       if (currentUser == null) return null;
 
-      final currentUserDoc =
-          await _firestore.collection('users').doc(currentUser.uid).get();
+      final currentUserDoc = await _firestore
+          .collection(FirestoreCollections.users)
+          .doc(currentUser.uid)
+          .get();
 
       if (!currentUserDoc.exists || currentUserDoc.data()?['role'] != 'admin') {
         return null;
       }
 
       // Verificar que el usuario asignado existe y que no sea admin
-      final assignedUserDoc =
-          await _firestore.collection('users').doc(assignedToUserId).get();
+      final assignedUserDoc = await _firestore
+          .collection(FirestoreCollections.users)
+          .doc(assignedToUserId)
+          .get();
 
       if (!assignedUserDoc.exists) {
         throw Exception('El usuario asignado no existe');
       }
 
-  final assignedUserData = assignedUserDoc.data();
+      final assignedUserData = assignedUserDoc.data();
       final assignedUserRole = assignedUserData?['role'] ?? 'normal';
       // Evitar asignar tareas a administradores
       if (assignedUserRole == 'admin') {
@@ -264,8 +281,8 @@ class AdminService {
         id: '', // Se asignará automáticamente
         title: title,
         description: description,
-        status: 'pending',
-        priority: priority,
+        status: TaskStatus.pending,
+        priority: taskPriorityFromString(priority),
         dueDate: dueDate,
         createdBy: currentUser.uid,
         assignedTo: assignedToUserId,
@@ -275,9 +292,9 @@ class AdminService {
         initialLinks: initialLinks ?? [],
         initialInstructions: initialInstructions,
       );
-
-      final docRef =
-          await _firestore.collection('tasks').add(taskModel.toFirestore());
+      final docRef = await _firestore
+          .collection(FirestoreCollections.tasks)
+          .add(taskModel.toFirestore());
 
       // Actualizar el ID del documento
       await docRef.update({'id': docRef.id});
@@ -312,32 +329,39 @@ class AdminService {
       final currentUser = AuthService.currentUser;
       if (currentUser == null) return null;
 
-      final currentUserDoc =
-          await _firestore.collection('users').doc(currentUser.uid).get();
+      final currentUserDoc = await _firestore
+          .collection(FirestoreCollections.users)
+          .doc(currentUser.uid)
+          .get();
 
       if (!currentUserDoc.exists || currentUserDoc.data()?['role'] != 'admin') {
         return null;
       }
 
       // Contar usuarios
-      final usersSnapshot = await _firestore.collection('users').get();
+      final usersSnapshot = await _firestore
+          .collection(FirestoreCollections.users)
+          .get();
       final totalUsers = usersSnapshot.size;
       final adminUsers = usersSnapshot.docs
           .where((doc) => doc.data()['role'] == 'admin')
           .length;
 
       // Contar tareas
-      final tasksSnapshot = await _firestore.collection('tasks').get();
-      final totalTasks = tasksSnapshot.size;
-      final pendingTasks = tasksSnapshot.docs
-          .where((doc) => doc.data()['status'] == 'pending')
-          .length;
-      final completedTasks = tasksSnapshot.docs
-          .where((doc) => doc.data()['status'] == 'completed')
-          .length;
+      final tasksSnapshot = await _firestore
+          .collection(FirestoreCollections.tasks)
+          .get();
+      final tasks = tasksSnapshot.docs
+          .map((doc) => TaskModel.fromFirestore(doc.data(), doc.id))
+          .toList();
+      final totalTasks = tasks.length;
+      final pendingTasks = tasks.where((task) => task.isPending).length;
+      final completedTasks = tasks.where((task) => task.isCompleted).length;
 
       // Contar notas
-      final notesSnapshot = await _firestore.collection('notes').get();
+      final notesSnapshot = await _firestore
+          .collection(FirestoreCollections.notes)
+          .get();
       final totalNotes = notesSnapshot.size;
 
       return {
@@ -361,15 +385,17 @@ class AdminService {
       final currentUser = AuthService.currentUser;
       if (currentUser == null) return [];
 
-      final currentUserDoc =
-          await _firestore.collection('users').doc(currentUser.uid).get();
+      final currentUserDoc = await _firestore
+          .collection(FirestoreCollections.users)
+          .doc(currentUser.uid)
+          .get();
 
       if (!currentUserDoc.exists || currentUserDoc.data()?['role'] != 'admin') {
         return [];
       }
 
       final querySnapshot = await _firestore
-          .collection('tasks')
+          .collection(FirestoreCollections.tasks)
           .where('createdBy', isEqualTo: currentUser.uid)
           .where('isPersonal', isEqualTo: false)
           .orderBy('createdAt', descending: true)
@@ -390,16 +416,17 @@ class AdminService {
       final currentUser = AuthService.currentUser;
       if (currentUser == null) return const Stream.empty();
 
-      final snapshots = _firestore
-          .collection('tasks')
+      return _firestore
+          .collection(FirestoreCollections.tasks)
           .where('createdBy', isEqualTo: currentUser.uid)
           .where('isPersonal', isEqualTo: false)
           .orderBy('createdAt', descending: true)
-          .snapshots();
-
-      return snapshots.map((snap) => snap.docs
-          .map((doc) => TaskModel.fromFirestore(doc.data(), doc.id))
-          .toList());
+          .snapshots()
+          .map(
+            (snap) => snap.docs
+                .map((doc) => TaskModel.fromFirestore(doc.data(), doc.id))
+                .toList(),
+          );
     } catch (e) {
       print('Error creando stream de tareas asignadas: $e');
       return const Stream.empty();
@@ -416,28 +443,35 @@ class AdminService {
     String? priority,
   }) async {
     try {
-    print('🔄 Actualizando tarea: $taskId');
+      print('🔄 Actualizando tarea: $taskId');
 
-    final currentUser = AuthService.currentUser;
-    if (currentUser == null) return false;
-    final currentUserDoc = await _firestore.collection('users').doc(currentUser.uid).get();
+      final currentUser = AuthService.currentUser;
+      if (currentUser == null) return false;
+      final currentUserDoc = await _firestore
+          .collection(FirestoreCollections.users)
+          .doc(currentUser.uid)
+          .get();
 
-    // Verificar que el usuario asignado existe y no es admin
-      final assignedUserDoc =
-          await _firestore.collection('users').doc(assignedToUserId).get();
+      // Verificar que el usuario asignado existe y no es admin
+      final assignedUserDoc = await _firestore
+          .collection(FirestoreCollections.users)
+          .doc(assignedToUserId)
+          .get();
       if (!assignedUserDoc.exists) {
         print('❌ Error: usuario asignado no existe: $assignedToUserId');
         return false;
       }
 
-  final assignedUserData = assignedUserDoc.data();
+      final assignedUserData = assignedUserDoc.data();
       final assignedUserRole = assignedUserData?['role'] ?? 'normal';
       if (assignedUserRole == 'admin') {
         print('❌ Error: no se permite asignar/actualizar tarea para usuario admin: $assignedToUserId');
         return false;
       }
 
-      final taskDocRef = _firestore.collection('tasks').doc(taskId);
+      final taskDocRef = _firestore
+          .collection(FirestoreCollections.tasks)
+          .doc(taskId);
 
       // Obtener estado previo
       final prevSnap = await taskDocRef.get();
@@ -452,7 +486,7 @@ class AdminService {
       };
       
       if (priority != null) {
-        updateData['priority'] = priority;
+        updateData['priority'] = taskPriorityFromString(priority).value;
       }
 
       await taskDocRef.update(updateData);
@@ -489,11 +523,16 @@ class AdminService {
 
       final currentUser = AuthService.currentUser;
       if (currentUser == null) return false;
-      final currentUserDoc = await _firestore.collection('users').doc(currentUser.uid).get();
+      final currentUserDoc = await _firestore
+          .collection(FirestoreCollections.users)
+          .doc(currentUser.uid)
+          .get();
 
       // Verificar que el usuario asignado existe y no es admin
-      final assignedUserDoc =
-          await _firestore.collection('users').doc(newAssignedToUserId).get();
+      final assignedUserDoc = await _firestore
+          .collection(FirestoreCollections.users)
+          .doc(newAssignedToUserId)
+          .get();
       if (!assignedUserDoc.exists) {
         print('❌ Error: usuario asignado no existe: $newAssignedToUserId');
         return false;
@@ -506,7 +545,9 @@ class AdminService {
         return false;
       }
 
-      final taskDocRef = _firestore.collection('tasks').doc(taskId);
+      final taskDocRef = _firestore
+          .collection(FirestoreCollections.tasks)
+          .doc(taskId);
 
       // Obtener estado previo
       final prevSnap = await taskDocRef.get();
@@ -548,7 +589,9 @@ class AdminService {
       print('🗑️ Eliminando tarea: $taskId');
 
       // Obtener snapshot previo para registro
-      final taskDocRef = _firestore.collection('tasks').doc(taskId);
+      final taskDocRef = _firestore
+          .collection(FirestoreCollections.tasks)
+          .doc(taskId);
       final prevSnap = await taskDocRef.get();
       final prevData = prevSnap.exists ? prevSnap.data() : null;
 
@@ -558,7 +601,10 @@ class AdminService {
         String? actorUid = currentUser?.uid;
         String? actorRole;
         if (currentUser != null) {
-          final actorDoc = await _firestore.collection('users').doc(currentUser.uid).get();
+          final actorDoc = await _firestore
+              .collection(FirestoreCollections.users)
+              .doc(currentUser.uid)
+              .get();
           if (actorDoc.exists) {
             final roleValue = actorDoc.data()?['role'];
             actorRole = roleValue is String ? roleValue : null;

@@ -1,3 +1,6 @@
+import 'comment.dart';
+import 'task_status.dart';
+
 class TaskModel {
   final String id;
   final String title;
@@ -6,8 +9,8 @@ class TaskModel {
   final String assignedTo; // UID del usuario asignado
   final String createdBy; // UID del creador
   final bool isPersonal; // true = tarea personal, false = asignada por admin
-  final String status; // 'pending', 'in_progress', 'pending_review', 'completed', 'rejected'
-  final String priority; // 'low', 'medium', 'high' (NUEVO)
+  final TaskStatus status; // Estado normalizado de la tarea
+  final TaskPriority priority; // Prioridad de la tarea
   final DateTime createdAt;
   final DateTime? completedAt;
   final DateTime? confirmedAt; // Fecha cuando admin confirma
@@ -28,6 +31,7 @@ class TaskModel {
   final List<String> initialAttachments; // URLs de archivos iniciales del admin
   final List<String> initialLinks; // Enlaces iniciales del admin
   final String? initialInstructions; // Instrucciones adicionales del admin
+  final List<Comment> comments; // Conversación interna asociada a la tarea
 
   TaskModel({
     required this.id,
@@ -37,8 +41,8 @@ class TaskModel {
     required this.assignedTo,
     required this.createdBy,
     required this.isPersonal,
-    required this.status,
-    this.priority = 'medium',
+  required this.status,
+  this.priority = TaskPriority.medium,
     required this.createdAt,
     this.completedAt,
     this.confirmedAt,
@@ -55,6 +59,7 @@ class TaskModel {
     this.initialAttachments = const [],
     this.initialLinks = const [],
     this.initialInstructions,
+    this.comments = const [],
   });
 
   factory TaskModel.fromFirestore(Map<String, dynamic> data, String id) {
@@ -66,8 +71,8 @@ class TaskModel {
       assignedTo: data['assignedTo'] ?? '',
       createdBy: data['createdBy'] ?? '',
       isPersonal: data['isPersonal'] ?? false,
-      status: data['status'] ?? 'pending',
-      priority: data['priority'] ?? 'medium',
+  status: taskStatusFromString(data['status'] as String?),
+  priority: taskPriorityFromString(data['priority'] as String?),
       createdAt: (data['createdAt'] as dynamic)?.toDate() ?? DateTime.now(),
       completedAt: (data['completedAt'] as dynamic)?.toDate(),
       confirmedAt: (data['confirmedAt'] as dynamic)?.toDate(),
@@ -84,6 +89,11 @@ class TaskModel {
       initialAttachments: List<String>.from(data['initialAttachments'] ?? []),
       initialLinks: List<String>.from(data['initialLinks'] ?? []),
       initialInstructions: data['initialInstructions'],
+      comments: (data['comments'] as List<dynamic>?)
+              ?.whereType<Map<String, dynamic>>()
+              .map(Comment.fromMap)
+              .toList() ??
+          const [],
     );
   }
 
@@ -95,8 +105,8 @@ class TaskModel {
       'assignedTo': assignedTo,
       'createdBy': createdBy,
       'isPersonal': isPersonal,
-      'status': status,
-      'priority': priority,
+  'status': status.value,
+  'priority': priority.value,
       'createdAt': createdAt,
       'completedAt': completedAt,
       'confirmedAt': confirmedAt,
@@ -113,6 +123,7 @@ class TaskModel {
       'initialAttachments': initialAttachments,
       'initialLinks': initialLinks,
       'initialInstructions': initialInstructions,
+      'comments': comments.map((comment) => comment.toMap()).toList(),
     };
   }
 
@@ -124,8 +135,8 @@ class TaskModel {
     String? assignedTo,
     String? createdBy,
     bool? isPersonal,
-    String? status,
-    String? priority,
+  TaskStatus? status,
+  TaskPriority? priority,
     DateTime? createdAt,
     DateTime? completedAt,
     DateTime? confirmedAt,
@@ -142,6 +153,7 @@ class TaskModel {
     List<String>? initialAttachments,
     List<String>? initialLinks,
     String? initialInstructions,
+    List<Comment>? comments,
   }) {
     return TaskModel(
       id: id ?? this.id,
@@ -151,8 +163,8 @@ class TaskModel {
       assignedTo: assignedTo ?? this.assignedTo,
       createdBy: createdBy ?? this.createdBy,
       isPersonal: isPersonal ?? this.isPersonal,
-      status: status ?? this.status,
-      priority: priority ?? this.priority,
+  status: status ?? this.status,
+  priority: priority ?? this.priority,
       createdAt: createdAt ?? this.createdAt,
       completedAt: completedAt ?? this.completedAt,
       confirmedAt: confirmedAt ?? this.confirmedAt,
@@ -169,20 +181,21 @@ class TaskModel {
       initialAttachments: initialAttachments ?? this.initialAttachments,
       initialLinks: initialLinks ?? this.initialLinks,
       initialInstructions: initialInstructions ?? this.initialInstructions,
+      comments: comments ?? this.comments,
     );
   }
 
-  bool get isCompleted => status == 'completed';
-  bool get isPending => status == 'pending';
-  bool get isInProgress => status == 'in_progress';
-  bool get isPendingReview => status == 'pending_review';
-  bool get isConfirmed => status == 'confirmed';
-  bool get isRejected => status == 'rejected';
+  bool get isCompleted => status == TaskStatus.completed;
+  bool get isPending => status == TaskStatus.pending;
+  bool get isInProgress => status == TaskStatus.inProgress;
+  bool get isPendingReview => status == TaskStatus.pendingReview;
+  bool get isConfirmed => status == TaskStatus.confirmed;
+  bool get isRejected => status == TaskStatus.rejected;
   bool get isOverdue =>
-      DateTime.now().isAfter(dueDate) && !isCompleted && !isConfirmed;
+    DateTime.now().isAfter(dueDate) && !isCompleted && !isConfirmed;
 
   @override
   String toString() {
-    return 'TaskModel(id: $id, title: $title, status: $status, dueDate: $dueDate)';
+    return 'TaskModel(id: $id, title: $title, status: ${status.value}, dueDate: $dueDate)';
   }
 }

@@ -155,9 +155,9 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isPending = widget.task.status == 'pending';
-    final isInProgress = widget.task.status == 'in_progress';
-    final isRejected = widget.task.status == 'rejected';
+  final isPending = widget.task.isPending;
+  final isInProgress = widget.task.isInProgress;
+  final isRejected = widget.task.isRejected;
 
     return Dialog(
       shape: RoundedRectangleBorder(
@@ -305,7 +305,7 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
                   alignment: WrapAlignment.end,
                   children: [
                     // Botón Cancelar (revertir estado) - ocultar si la tarea ya está completada
-                    if (widget.task.status != 'completed')
+                    if (!widget.task.isCompleted)
                       TextButton.icon(
                         onPressed: _handleCancelTask,
                         icon: const Icon(Icons.undo, size: 18),
@@ -643,7 +643,7 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
   }
 
   Widget _buildAdminCommentAlert() {
-    final isRejected = widget.task.status == 'rejected';
+  final isRejected = widget.task.isRejected;
     final color = isRejected ? const Color(0xFFfc4a1a) : const Color(0xFF667eea);
     final title = isRejected ? '❌ Tarea Rechazada por el Admin' : '✅ Comentario del Admin';
     final icon = isRejected ? Icons.cancel : Icons.check_circle;

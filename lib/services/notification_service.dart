@@ -5,7 +5,9 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 import 'dart:async';
+import '../constants/firestore_collections.dart';
 import '../models/task_model.dart';
+import '../models/task_status.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notifications =
@@ -405,8 +407,8 @@ class NotificationService {
 
     try {
       // Simplificar consulta - solo buscar por assignedTo y filtrar después
-      final tasksQuery = await FirebaseFirestore.instance
-          .collection('tasks')
+    final tasksQuery = await FirebaseFirestore.instance
+      .collection(FirestoreCollections.tasks)
           .where('assignedTo', isEqualTo: user.uid)
           .get();
 
@@ -414,7 +416,7 @@ class NotificationService {
         final task = TaskModel.fromFirestore(doc.data(), doc.id);
 
         // Solo programar para tareas pendientes
-        if (task.status == 'pending') {
+  if (task.status == TaskStatus.pending) {
           // Programar notificación 1 día antes del vencimiento
           final oneDayBefore = task.dueDate.subtract(const Duration(days: 1));
           if (oneDayBefore.isAfter(DateTime.now())) {
@@ -468,8 +470,8 @@ class NotificationService {
 
     try {
       // Consulta simple solo por assignedTo para evitar índices
-      final tasksQuery = await FirebaseFirestore.instance
-          .collection('tasks')
+    final tasksQuery = await FirebaseFirestore.instance
+      .collection(FirestoreCollections.tasks)
           .where('assignedTo', isEqualTo: user.uid)
           .get();
 
@@ -528,10 +530,10 @@ class NotificationService {
     if (user == null) return;
 
     // Obtener tareas completadas
-    final completedTasksQuery = await FirebaseFirestore.instance
-        .collection('tasks')
+  final completedTasksQuery = await FirebaseFirestore.instance
+    .collection(FirestoreCollections.tasks)
         .where('assignedTo', isEqualTo: user.uid)
-        .where('status', isEqualTo: 'completed')
+    .where('status', isEqualTo: TaskStatus.completed.value)
         .get();
 
     // Cancelar notificaciones de tareas completadas

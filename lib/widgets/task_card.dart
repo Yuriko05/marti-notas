@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/task_model.dart';
+import '../models/task_status.dart';
 import '../models/user_model.dart';
 import 'task_preview_dialog.dart';
 
@@ -32,7 +33,7 @@ class TaskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusInfo = _getStatusInfo(task.status);
+  final statusInfo = _getStatusInfo(task.status);
     final isOverdue = task.isOverdue;
 
     return InkWell(
@@ -113,7 +114,7 @@ class TaskCard extends StatelessWidget {
                   _buildPriorityBadge(task),
                   const SizedBox(width: 4),
                   // Badge de nuevo comentario del admin
-                  if ((task.status == 'completed' || task.status == 'confirmed' || task.status == 'rejected') && 
+          if ((task.isCompleted || task.isConfirmed || task.isRejected) && 
                       task.reviewComment != null && 
                       task.reviewComment!.isNotEmpty) ...[
                     _buildNewCommentBadge(task),
@@ -188,7 +189,7 @@ class TaskCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
               // Mostrar comentario de revisión si existe y la tarea está completada/confirmada/rechazada
-              if ((task.status == 'completed' || task.status == 'confirmed' || task.status == 'rejected') && 
+        if ((task.isCompleted || task.isConfirmed || task.isRejected) && 
                   task.reviewComment != null && 
                   task.reviewComment!.isNotEmpty)
                 _buildReviewCommentSection(task),
@@ -245,49 +246,49 @@ class TaskCard extends StatelessWidget {
     );
   }
 
-  Map<String, dynamic> _getStatusInfo(String status) {
+  Map<String, dynamic> _getStatusInfo(TaskStatus status) {
     switch (status) {
-      case 'pending':
+      case TaskStatus.pending:
         return {
           'color': const Color(0xFFf093fb),
           'text': 'Pendiente',
           'icon': Icons.schedule,
           'gradient': const LinearGradient(colors: [Color(0xFFf093fb), Color(0xFFf5576c)]),
         };
-      case 'in_progress':
+      case TaskStatus.inProgress:
         return {
           'color': const Color(0xFF4facfe),
           'text': 'En Progreso',
           'icon': Icons.autorenew,
           'gradient': const LinearGradient(colors: [Color(0xFF4facfe), Color(0xFF00f2fe)]),
         };
-      case 'completed':
+      case TaskStatus.completed:
         return {
           'color': const Color(0xFF43e97b),
           'text': 'Completada',
           'icon': Icons.check_circle,
           'gradient': const LinearGradient(colors: [Color(0xFF43e97b), Color(0xFF38f9d7)]),
         };
-      case 'confirmed':
+      case TaskStatus.confirmed:
         return {
           'color': const Color(0xFF667eea),
           'text': 'Confirmada',
           'icon': Icons.verified,
           'gradient': const LinearGradient(colors: [Color(0xFF667eea), Color(0xFF764ba2)]),
         };
-      case 'rejected':
+      case TaskStatus.pendingReview:
+        return {
+          'color': const Color(0xFFf7b733),
+          'text': 'En Revisión',
+          'icon': Icons.rate_review,
+          'gradient': const LinearGradient(colors: [Color(0xFFf7b733), Color(0xFFfceabb)]),
+        };
+      case TaskStatus.rejected:
         return {
           'color': const Color(0xFFfc4a1a),
           'text': 'Rechazada',
           'icon': Icons.cancel,
           'gradient': const LinearGradient(colors: [Color(0xFFfc4a1a), Color(0xFFf7b733)]),
-        };
-      default:
-        return {
-          'color': Colors.grey,
-          'text': 'Desconocido',
-          'icon': Icons.help,
-          'gradient': const LinearGradient(colors: [Colors.grey, Colors.grey]),
         };
     }
   }
@@ -323,7 +324,7 @@ class TaskCard extends StatelessWidget {
   }
 
   Widget _buildNewCommentBadge(TaskModel task) {
-    final isRejected = task.status == 'rejected';
+  final isRejected = task.isRejected;
     final color = isRejected ? const Color(0xFFfc4a1a) : const Color(0xFF667eea);
     final text = isRejected ? '¡Admin rechazó!' : '💬 Comentario';
     
@@ -361,24 +362,23 @@ class TaskCard extends StatelessWidget {
 
   Widget _buildPriorityBadge(TaskModel task) {
     Map<String, dynamic> priorityInfo;
-    
+
     switch (task.priority) {
-      case 'high':
+      case TaskPriority.high:
         priorityInfo = {
           'color': const Color(0xFFfc4a1a),
           'icon': Icons.priority_high,
           'text': 'Alta',
         };
         break;
-      case 'low':
+      case TaskPriority.low:
         priorityInfo = {
           'color': const Color(0xFF43e97b),
           'icon': Icons.arrow_downward,
           'text': 'Baja',
         };
         break;
-      case 'medium':
-      default:
+      case TaskPriority.medium:
         priorityInfo = {
           'color': const Color(0xFFf7b733),
           'icon': Icons.remove,
@@ -452,7 +452,7 @@ class TaskCard extends StatelessWidget {
 
   Widget _buildReviewCommentSection(TaskModel task) {
     // Determinar si es un rechazo para cambiar color y estilo
-    final isRejected = task.status == 'rejected';
+  final isRejected = task.isRejected;
     final color = isRejected ? const Color(0xFFfc4a1a) : const Color(0xFF667eea);
     final icon = isRejected ? Icons.cancel : Icons.rate_review;
     final title = isRejected ? 'Motivo de Rechazo' : 'Comentario de Revisión';

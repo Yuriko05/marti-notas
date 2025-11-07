@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import '../../models/user_model.dart';
 import '../../models/task_model.dart';
+import '../../models/task_status.dart';
 import '../../services/admin_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/task_review_dialog.dart';
@@ -90,21 +91,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
     print('📊 Calculando stats para ${_allTasks.length} tareas');
     
     for (var task in _allTasks) {
-      print('   Tarea: "${task.title}" - Status: "${task.status}"');
-      
-      if (task.status == 'completed') {
+      print('   Tarea: "${task.title}" - Status: "${task.status.value}"');
+
+      if (task.isCompleted) {
         completed++;
-      } else if (task.status == 'in_progress') {
+      } else if (task.isInProgress) {
         inProgress++;
-      } else if (task.status == 'pending_review' && !task.isPersonal) {
+      } else if (task.isPendingReview && !task.isPersonal) {
         // Solo contar tareas NO personales en revisión
         pendingReview++;
-      } else if (task.status == 'pending') {
+      } else if (task.isPending) {
         pending++;
       }
 
       // Check if overdue
-      if (task.status != 'completed' && task.dueDate.isBefore(now)) {
+      if (!task.isCompleted && task.dueDate.isBefore(now)) {
         overdue++;
       }
     }
@@ -127,12 +128,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final userTasks = _allTasks.where((t) => t.assignedTo == userId).toList();
     final now = DateTime.now();
 
-    int completed = userTasks.where((t) => t.status == 'completed').length;
-    int pending = userTasks.where((t) => t.status == 'pending').length;
-    int inProgress = userTasks.where((t) => t.status == 'in_progress').length;
-    int pendingReview = userTasks.where((t) => t.status == 'pending_review' && !t.isPersonal).length;
+  int completed = userTasks.where((t) => t.isCompleted).length;
+  int pending = userTasks.where((t) => t.isPending).length;
+  int inProgress = userTasks.where((t) => t.isInProgress).length;
+  int pendingReview =
+    userTasks.where((t) => t.isPendingReview && !t.isPersonal).length;
     int overdue = userTasks
-        .where((t) => t.status != 'completed' && t.dueDate.isBefore(now))
+    .where((t) => !t.isCompleted && t.dueDate.isBefore(now))
         .length;
 
     double completionRate =
@@ -230,7 +232,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ),
 
           // Pending Review Tasks Section (excluir tareas personales)
-          if (_allTasks.where((t) => t.status == 'pending_review' && !t.isPersonal).isNotEmpty) ...[
+          if (_allTasks.where((t) => t.isPendingReview && !t.isPersonal).isNotEmpty) ...[
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
@@ -254,7 +256,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        '${_allTasks.where((t) => t.status == 'pending_review' && !t.isPersonal).length} pendiente${_allTasks.where((t) => t.status == 'pending_review' && !t.isPersonal).length > 1 ? 's' : ''}',
+                        '${_allTasks.where((t) => t.isPendingReview && !t.isPersonal).length} pendiente${_allTasks.where((t) => t.isPendingReview && !t.isPersonal).length > 1 ? 's' : ''}',
                         style: const TextStyle(
                           color: Color(0xFF667eea),
                           fontWeight: FontWeight.bold,
@@ -271,12 +273,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
-                    final reviewTasks = _allTasks.where((t) => t.status == 'pending_review' && !t.isPersonal).toList();
+          final reviewTasks =
+            _allTasks.where((t) => t.isPendingReview && !t.isPersonal).toList();
                     if (index >= reviewTasks.length) return null;
                     final task = reviewTasks[index];
                     return _buildReviewTaskItem(task);
                   },
-                  childCount: _allTasks.where((t) => t.status == 'pending_review' && !t.isPersonal).length,
+          childCount: _allTasks
+            .where((t) => t.isPendingReview && !t.isPersonal)
+            .length,
                 ),
               ),
             ),
@@ -882,24 +887,37 @@ class _AdminDashboardState extends State<AdminDashboard> {
       ),
     );
 
-    final now = DateTime.now();
-    final isOverdue = task.status != 'completed' && task.dueDate.isBefore(now);
+  final now = DateTime.now();
+  final isOverdue = !task.isCompleted && task.dueDate.isBefore(now);
     final daysUntilDue = task.dueDate.difference(now).inDays;
 
     Color statusColor;
     IconData statusIcon;
     switch (task.status) {
-      case 'completed':
+      case TaskStatus.completed:
         statusColor = AppColors.success;
         statusIcon = Icons.check_circle;
         break;
-      case 'in-progress':
+      case TaskStatus.inProgress:
         statusColor = Colors.blue;
         statusIcon = Icons.timer;
         break;
-      default:
+      case TaskStatus.pending:
         statusColor = Colors.orange;
         statusIcon = Icons.pending_actions;
+        break;
+      case TaskStatus.pendingReview:
+        statusColor = Colors.amber;
+        statusIcon = Icons.rate_review;
+        break;
+      case TaskStatus.confirmed:
+        statusColor = AppColors.primary;
+        statusIcon = Icons.verified;
+        break;
+      case TaskStatus.rejected:
+        statusColor = AppColors.error;
+        statusIcon = Icons.cancel;
+        break;
     }
 
     return Container(
@@ -984,7 +1002,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     ),
                   ),
                 )
-              else if (task.status != 'completed')
+              else if (!task.isCompleted)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(

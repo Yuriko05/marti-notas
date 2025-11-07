@@ -370,12 +370,12 @@ class _UserDashboardState extends State<UserDashboard> {
       child: Row(
         children: [
           Icon(
-            task.status == 'in_progress'
+            task.isInProgress
                 ? Icons.play_circle_outline
                 : Icons.radio_button_unchecked,
             color: isOverdue
                 ? const Color(0xFFfc4a1a)
-                : task.status == 'in_progress'
+                : task.isInProgress
                     ? const Color(0xFF667eea)
                     : Colors.grey,
             size: 20,

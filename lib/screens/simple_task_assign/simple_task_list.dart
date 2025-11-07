@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/task_model.dart';
 import '../../models/user_model.dart';
+import '../../services/search_service.dart';
 import '../../widgets/task_preview_dialog.dart';
 import '../../widgets/task_card.dart';
 
@@ -8,8 +9,7 @@ import '../../widgets/task_card.dart';
 class SimpleTaskList extends StatelessWidget {
   final List<TaskModel> tasks;
   final List<UserModel> users;
-  final String searchQuery;
-  final String statusFilter;
+  final TaskSearchFilters filters;
   final Function(TaskModel) onEdit;
   final Function(TaskModel) onDelete;
   final String currentUserId;
@@ -22,8 +22,7 @@ class SimpleTaskList extends StatelessWidget {
     super.key,
     required this.tasks,
     required this.users,
-    required this.searchQuery,
-    required this.statusFilter,
+  required this.filters,
     required this.onEdit,
     required this.onDelete,
     required this.currentUserId,
@@ -34,18 +33,7 @@ class SimpleTaskList extends StatelessWidget {
   });
 
   List<TaskModel> get filteredTasks {
-    return tasks.where((task) {
-      bool matchesSearch = searchQuery.isEmpty ||
-          task.title.toLowerCase().contains(searchQuery.toLowerCase()) ||
-          task.description.toLowerCase().contains(searchQuery.toLowerCase());
-
-      bool matchesStatus = statusFilter == 'all' ||
-          (statusFilter == 'pending' && task.isPending) ||
-          (statusFilter == 'completed' && task.isCompleted) ||
-          (statusFilter == 'overdue' && task.isOverdue);
-
-      return matchesSearch && matchesStatus;
-    }).toList();
+    return SearchService.applyFilters(tasks, filters);
   }
 
   @override
@@ -160,7 +148,7 @@ class SimpleTaskList extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    searchQuery.isNotEmpty || statusFilter != 'all'
+                    filters.hasActiveFilters
                         ? 'No se encontraron tareas'
                         : 'No hay tareas asignadas',
                     style: const TextStyle(
@@ -171,7 +159,7 @@ class SimpleTaskList extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    searchQuery.isNotEmpty || statusFilter != 'all'
+                    filters.hasActiveFilters
                         ? 'Intenta ajustar los filtros de búsqueda'
                         : 'Comienza asignando tareas a tu equipo',
                     style: TextStyle(

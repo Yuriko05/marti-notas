@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../constants/firestore_collections.dart';
 import '../models/history_event.dart';
 
 class HistoryService {
@@ -27,14 +28,22 @@ class HistoryService {
     try {
       // Escribir en tasks/{taskId}/history (legacy)
       try {
-        await _firestore.collection('tasks').doc(taskId).collection('history').add(event);
+        await _firestore
+            .collection(FirestoreCollections.tasks)
+            .doc(taskId)
+            .collection('history')
+            .add(event);
       } catch (e) {
         // ignore: avoid_print
         print('Warning: failed to write legacy history for $taskId: $e');
       }
 
-      // Escribir en task_history/{taskId}/events (nuevo)
-      await _firestore.collection('task_history').doc(taskId).collection('events').add(event);
+      final eventsRef = _firestore
+          .collection(FirestoreCollections.taskHistory)
+          .doc(taskId)
+          .collection('events');
+
+      await eventsRef.add(event);
     } catch (e) {
       // ignore: avoid_print
       print('Error escribiendo history para $taskId: $e');
@@ -44,10 +53,12 @@ class HistoryService {
   /// Obtiene un stream de eventos de auditoría para la tarea.
   /// Lee de la colección nueva `task_history/{taskId}/events` con orderBy timestamp DESC.
   static Stream<List<HistoryEvent>> streamEvents(String taskId, {int limit = 50}) {
-    return _firestore
-        .collection('task_history')
+    final eventsRef = _firestore
+        .collection(FirestoreCollections.taskHistory)
         .doc(taskId)
-        .collection('events')
+        .collection('events');
+
+    return eventsRef
         .orderBy('timestamp', descending: true)
         .limit(limit)
         .snapshots()

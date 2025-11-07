@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../constants/firestore_collections.dart';
 import '../models/task_model.dart';
+import '../models/task_status.dart';
 
 class TaskCleanupService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -24,13 +26,19 @@ class TaskCleanupService {
 
       // Consultar tareas completadas que son más antiguas de 24 horas
       final completedTasksQuery = await _firestore
-          .collection('tasks')
-          .where('status', isEqualTo: 'completed')
+          .collection(FirestoreCollections.tasks)
+          .where('status', isEqualTo: TaskStatus.completed.value)
           .where('completedAt', isLessThan: cutoffTime)
           .get();
 
       final tasksToDelete = completedTasksQuery.docs;
       print('📋 Encontradas ${tasksToDelete.length} tareas para eliminar');
+
+      final userDoc = await _firestore
+          .collection(FirestoreCollections.users)
+          .doc(currentUser.uid)
+          .get();
+      final isAdmin = userDoc.data()?['role'] == 'admin';
 
       // Eliminar cada tarea
       final batch = _firestore.batch();
@@ -39,12 +47,6 @@ class TaskCleanupService {
       for (var taskDoc in tasksToDelete) {
         final taskData = taskDoc.data();
         final task = TaskModel.fromFirestore(taskData, taskDoc.id);
-
-        // Verificar que el usuario actual tenga permisos para eliminar esta tarea
-        // (es el creador, está asignada a él, o es admin)
-        final userDoc =
-            await _firestore.collection('users').doc(currentUser.uid).get();
-        final isAdmin = userDoc.data()?['role'] == 'admin';
 
         if (task.assignedTo == currentUser.uid ||
             task.createdBy == currentUser.uid ||
@@ -78,9 +80,9 @@ class TaskCleanupService {
 
       // Consultar tareas completadas del usuario específico
       final userTasksQuery = await _firestore
-          .collection('tasks')
+          .collection(FirestoreCollections.tasks)
           .where('assignedTo', isEqualTo: userId)
-          .where('status', isEqualTo: 'completed')
+          .where('status', isEqualTo: TaskStatus.completed.value)
           .where('completedAt', isLessThan: cutoffTime)
           .get();
 
@@ -109,8 +111,10 @@ class TaskCleanupService {
       if (currentUser == null) return;
 
       // Verificar que el usuario sea admin
-      final userDoc =
-          await _firestore.collection('users').doc(currentUser.uid).get();
+      final userDoc = await _firestore
+          .collection(FirestoreCollections.users)
+          .doc(currentUser.uid)
+          .get();
       if (userDoc.data()?['role'] != 'admin') {
         print('❌ Solo administradores pueden ejecutar limpieza general');
         return;
@@ -121,8 +125,8 @@ class TaskCleanupService {
       final cutoffTime = DateTime.now().subtract(const Duration(hours: 24));
 
       final completedTasksQuery = await _firestore
-          .collection('tasks')
-          .where('status', isEqualTo: 'completed')
+          .collection(FirestoreCollections.tasks)
+          .where('status', isEqualTo: TaskStatus.completed.value)
           .where('completedAt', isLessThan: cutoffTime)
           .get();
 
@@ -156,13 +160,15 @@ class TaskCleanupService {
 
       // Contar tareas que serían eliminadas
       final completedTasksQuery = await _firestore
-          .collection('tasks')
-          .where('status', isEqualTo: 'completed')
+          .collection(FirestoreCollections.tasks)
+          .where('status', isEqualTo: TaskStatus.completed.value)
           .where('completedAt', isLessThan: cutoffTime)
           .get();
 
-      final userDoc =
-          await _firestore.collection('users').doc(currentUser.uid).get();
+      final userDoc = await _firestore
+          .collection(FirestoreCollections.users)
+          .doc(currentUser.uid)
+          .get();
       final isAdmin = userDoc.data()?['role'] == 'admin';
 
       int userTasks = 0;

@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
 import '../../models/task_model.dart';
+import '../../models/task_status.dart';
 import '../../services/task_service.dart';
 import '../../widgets/task_preview_dialog.dart';
 
 /// Lista de tareas con integración real a Firestore
 class TaskList extends StatelessWidget {
   final String userId;
-  final String status;
+  final TaskStatus status;
   final Animation<double> fadeAnimation;
   final String searchQuery;
   final String priorityFilter;
 
   const TaskList({
     super.key,
-    required this.userId,
-    required this.status,
+  required this.userId,
+  required this.status,
     required this.fadeAnimation,
     this.searchQuery = '',
     this.priorityFilter = 'all',
@@ -25,7 +26,7 @@ class TaskList extends StatelessWidget {
     return FadeTransition(
       opacity: fadeAnimation,
       child: StreamBuilder<List<TaskModel>>(
-        stream: TaskService.getUserTasksByStatus(userId, status),
+  stream: TaskService.getUserTasksByStatus(userId, status),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
@@ -262,56 +263,77 @@ class TaskList extends StatelessWidget {
   }
 
   Map<String, dynamic> _getTaskStatusInfo(TaskModel task) {
-    if (task.status == 'pending') {
-      return {
-        'text': 'Pendiente',
-        'icon': Icons.schedule,
-        'color': Colors.orange,
-      };
-    } else if (task.status == 'in_progress') {
-      return {
-        'text': 'En Progreso',
-        'icon': Icons.autorenew,
-        'color': Colors.blue,
-      };
-    } else if (task.status == 'completed') {
-      return {
-        'text': 'Completada',
-        'icon': Icons.check_circle,
-        'color': Colors.green,
-      };
-    } else {
-      return {
-        'text': 'Desconocido',
-        'icon': Icons.help,
-        'color': Colors.grey,
-      };
+    switch (task.status) {
+      case TaskStatus.pending:
+        return {
+          'text': 'Pendiente',
+          'icon': Icons.schedule,
+          'color': Colors.orange,
+        };
+      case TaskStatus.inProgress:
+        return {
+          'text': 'En Progreso',
+          'icon': Icons.autorenew,
+          'color': Colors.blue,
+        };
+      case TaskStatus.pendingReview:
+        return {
+          'text': 'En Revisión',
+          'icon': Icons.rate_review,
+          'color': Colors.amber,
+        };
+      case TaskStatus.completed:
+        return {
+          'text': 'Completada',
+          'icon': Icons.check_circle,
+          'color': Colors.green,
+        };
+      case TaskStatus.confirmed:
+        return {
+          'text': 'Confirmada',
+          'icon': Icons.verified,
+          'color': Colors.indigo,
+        };
+      case TaskStatus.rejected:
+        return {
+          'text': 'Rechazada',
+          'icon': Icons.cancel,
+          'color': Colors.red,
+        };
     }
   }
 
-  IconData _getIconForStatus(String status) {
+  IconData _getIconForStatus(TaskStatus status) {
     switch (status) {
-      case 'pending':
+      case TaskStatus.pending:
         return Icons.schedule;
-      case 'in_progress':
+      case TaskStatus.inProgress:
         return Icons.autorenew;
-      case 'completed':
+      case TaskStatus.pendingReview:
+        return Icons.rate_review;
+      case TaskStatus.completed:
         return Icons.check_circle;
-      default:
-        return Icons.assignment;
+      case TaskStatus.confirmed:
+        return Icons.verified;
+      case TaskStatus.rejected:
+        return Icons.cancel;
     }
   }
 
-  String _getEmptyMessageForStatus(String status) {
+  String _getEmptyMessageForStatus(TaskStatus status) {
     switch (status) {
-      case 'pending':
+      case TaskStatus.pending:
         return 'No tienes tareas pendientes';
-      case 'in_progress':
+      case TaskStatus.inProgress:
         return 'No tienes tareas en progreso';
-      case 'completed':
+      case TaskStatus.pendingReview:
+        return 'No tienes tareas en revisión';
+      case TaskStatus.completed:
         return 'No tienes tareas completadas';
-      default:
-        return 'No hay tareas';
+      case TaskStatus.confirmed:
+        return 'No tienes tareas confirmadas';
+      case TaskStatus.rejected:
+        return 'No tienes tareas rechazadas';
     }
   }
 
