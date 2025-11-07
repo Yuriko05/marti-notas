@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/task_model.dart';
+import '../models/task_status.dart';
 import '../services/task_service.dart';
 import 'task_completion_dialog.dart';
 
@@ -375,56 +376,51 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
   }
 
   Widget _buildPrioritySection() {
-    Map<String, dynamic> priorityInfo;
-    
+    late final Color color;
+    late final IconData icon;
+    late final String label;
+
     switch (widget.task.priority) {
-      case 'high':
-        priorityInfo = {
-          'color': const Color(0xFFfc4a1a),
-          'icon': Icons.priority_high,
-          'text': 'Prioridad Alta',
-        };
+      case TaskPriority.high:
+        color = const Color(0xFFfc4a1a);
+        icon = Icons.priority_high;
+        label = 'Prioridad Alta';
         break;
-      case 'low':
-        priorityInfo = {
-          'color': const Color(0xFF43e97b),
-          'icon': Icons.arrow_downward,
-          'text': 'Prioridad Baja',
-        };
+      case TaskPriority.low:
+        color = const Color(0xFF43e97b);
+        icon = Icons.arrow_downward;
+        label = 'Prioridad Baja';
         break;
-      case 'medium':
-      default:
-        priorityInfo = {
-          'color': const Color(0xFFf7b733),
-          'icon': Icons.remove,
-          'text': 'Prioridad Media',
-        };
+      case TaskPriority.medium:
+        color = const Color(0xFFf7b733);
+        icon = Icons.remove;
+        label = 'Prioridad Media';
         break;
     }
 
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: (priorityInfo['color'] as Color).withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: (priorityInfo['color'] as Color).withValues(alpha: 0.3),
+          color: color.withOpacity(0.3),
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            priorityInfo['icon'] as IconData,
-            color: priorityInfo['color'] as Color,
+            icon,
+            color: color,
             size: 20,
           ),
           const SizedBox(width: 8),
           Text(
-            priorityInfo['text'] as String,
+            label,
             style: TextStyle(
               fontSize: 14,
-              color: priorityInfo['color'] as Color,
+              color: color,
               fontWeight: FontWeight.bold,
             ),
           ),

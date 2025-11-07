@@ -379,6 +379,7 @@ class NotificationService {
     const int dailyReminderId = 1000; // ID fijo para recordatorio diario
 
     try {
+      // TODO: Migrar la programación de recordatorios a Cloud Tasks para soportar recordatorios push.
       // Programar para las 9:00 AM todos los días
       final now = DateTime.now();
       var scheduledTime = DateTime(now.year, now.month, now.day, 9, 0);

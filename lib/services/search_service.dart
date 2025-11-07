@@ -76,8 +76,16 @@ class SearchService {
         task.completionComment,
       ];
 
-      return candidates.any(
+      final textMatch = candidates.any(
         (text) => text != null && text.toLowerCase().contains(normalized),
+      );
+
+      if (textMatch) {
+        return true;
+      }
+
+      return task.comments.any(
+        (comment) => comment.message.toLowerCase().contains(normalized),
       );
     }).toList();
   }

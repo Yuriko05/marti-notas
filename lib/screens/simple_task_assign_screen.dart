@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../models/task_model.dart';
 import '../models/user_model.dart';
 import '../services/admin_service.dart';
+import '../services/search_service.dart';
 import '../services/task_cleanup_service.dart';
 import '../widgets/bulk_actions_bar.dart';
 import '../theme/app_theme.dart';
@@ -15,6 +16,7 @@ import 'simple_task_assign/simple_task_list.dart';
 import 'simple_task_assign/task_dialogs.dart';
 import 'simple_task_assign/bulk_action_handlers.dart';
 import '../widgets/task_history_panel.dart';
+import 'history/task_history_screen.dart';
 
 
 class SimpleTaskAssignScreen extends StatefulWidget {
@@ -31,8 +33,7 @@ class _SimpleTaskAssignScreenState extends State<SimpleTaskAssignScreen> {
   List<TaskModel> assignedTasks = [];
   bool isLoading = true;
   StreamSubscription<List<TaskModel>>? _tasksSubscription;
-  String searchQuery = '';
-  String statusFilter = 'all';
+  TaskSearchFilters _filters = const TaskSearchFilters();
   final Set<String> _selectedTaskIds = {};
   TaskModel? _selectedTask; // Para el panel de historial
 
@@ -114,6 +115,19 @@ class _SimpleTaskAssignScreenState extends State<SimpleTaskAssignScreen> {
     }
   }
 
+  void _handleFiltersChanged(TaskSearchFilters filters) {
+    setState(() => _filters = filters);
+  }
+
+  void _openHistoryFullScreen(TaskModel task) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TaskHistoryScreen(task: task),
+      ),
+    );
+  }
+
   /// Muestra el historial en un bottom sheet modal
   void _showHistoryModal(TaskModel task) {
     showModalBottomSheet(
@@ -181,7 +195,10 @@ class _SimpleTaskAssignScreenState extends State<SimpleTaskAssignScreen> {
               const Divider(),
               // Historial con scroll
               Expanded(
-                child: TaskHistoryPanel(task: task),
+                child: TaskHistoryPanel(
+                  task: task,
+                  onOpenFullScreen: () => _openHistoryFullScreen(task),
+                ),
               ),
             ],
           ),
@@ -224,14 +241,8 @@ class _SimpleTaskAssignScreenState extends State<SimpleTaskAssignScreen> {
                                 // Search bar scrollable
                                 SliverToBoxAdapter(
                                   child: SimpleTaskSearchBar(
-                                    searchQuery: searchQuery,
-                                    statusFilter: statusFilter,
-                                    onSearchChanged: (value) {
-                                      setState(() => searchQuery = value);
-                                    },
-                                    onFilterChanged: (value) {
-                                      setState(() => statusFilter = value!);
-                                    },
+                                    filters: _filters,
+                                    onFiltersChanged: _handleFiltersChanged,
                                   ),
                                 ),
                                 // Lista de tareas
@@ -239,8 +250,7 @@ class _SimpleTaskAssignScreenState extends State<SimpleTaskAssignScreen> {
                                   child: SimpleTaskList(
                                     tasks: assignedTasks,
                                     users: users,
-                                    searchQuery: searchQuery,
-                                    statusFilter: statusFilter,
+                                    filters: _filters,
                                     onEdit: _showEditTaskDialog,
                                     onDelete: _showDeleteTaskDialog,
                                     currentUserId: widget.currentUser.uid,
@@ -259,14 +269,8 @@ class _SimpleTaskAssignScreenState extends State<SimpleTaskAssignScreen> {
                             children: [
                               SimpleTaskStats(tasks: assignedTasks),
                               SimpleTaskSearchBar(
-                                searchQuery: searchQuery,
-                                statusFilter: statusFilter,
-                                onSearchChanged: (value) {
-                                  setState(() => searchQuery = value);
-                                },
-                                onFilterChanged: (value) {
-                                  setState(() => statusFilter = value!);
-                                },
+                                filters: _filters,
+                                onFiltersChanged: _handleFiltersChanged,
                               ),
                               Expanded(
                                 child: Row(
@@ -276,8 +280,7 @@ class _SimpleTaskAssignScreenState extends State<SimpleTaskAssignScreen> {
                                       child: SimpleTaskList(
                                         tasks: assignedTasks,
                                         users: users,
-                                        searchQuery: searchQuery,
-                                        statusFilter: statusFilter,
+                                        filters: _filters,
                                         onEdit: _showEditTaskDialog,
                                         onDelete: _showDeleteTaskDialog,
                                         currentUserId: widget.currentUser.uid,
@@ -290,6 +293,9 @@ class _SimpleTaskAssignScreenState extends State<SimpleTaskAssignScreen> {
                                     if (widget.currentUser.isAdmin)
                                       TaskHistoryPanel(
                                         task: _selectedTask,
+                                        onOpenFullScreen: _selectedTask == null
+                                            ? null
+                                            : () => _openHistoryFullScreen(_selectedTask!),
                                       ),
                                   ],
                                 ),

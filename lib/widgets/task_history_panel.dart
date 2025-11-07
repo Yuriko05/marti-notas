@@ -7,8 +7,9 @@ import '../../services/history_service.dart';
 
 class TaskHistoryPanel extends StatelessWidget {
   final TaskModel? task;
+  final VoidCallback? onOpenFullScreen;
 
-  const TaskHistoryPanel({super.key, required this.task});
+  const TaskHistoryPanel({super.key, required this.task, this.onOpenFullScreen});
 
   @override
   Widget build(BuildContext context) {
@@ -70,9 +71,20 @@ class TaskHistoryPanel extends StatelessWidget {
                     ),
                 ],
               ),
-              Tooltip(
-                message: 'task_history/${task!.id}/events',
-                child: const Icon(Icons.history, size: 20, color: Colors.grey),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Tooltip(
+                    message: 'task_history/${task!.id}/events',
+                    child: const Icon(Icons.history, size: 20, color: Colors.grey),
+                  ),
+                  if (onOpenFullScreen != null)
+                    IconButton(
+                      icon: const Icon(Icons.open_in_new, size: 20),
+                      tooltip: 'Abrir historial en pantalla completa',
+                      onPressed: onOpenFullScreen,
+                    ),
+                ],
               ),
             ],
           ),

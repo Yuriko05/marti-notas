@@ -121,6 +121,7 @@ firebase functions:log --only sendTaskAssignedNotification
 - Revisar `firestore.rules` si quieres que sólo los admins puedan listar usuarios (hoy la regla de lectura previene listados por usuarios no-admin).
 
 - Añadir monitoreo (Sentry / Cloud Monitoring) en Cloud Functions para alertar sobre aumentos de errores en envíos.
+- TODO: Migrar los recordatorios locales a Cloud Tasks para unificar recordatorios push programados.
 
 ## 6) Cambios de código relevantes (resumen técnico)
 
