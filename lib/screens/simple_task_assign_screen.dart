@@ -100,8 +100,7 @@ class _SimpleTaskAssignScreenState extends State<SimpleTaskAssignScreen> {
   Future<void> _performAutomaticCleanup() async {
     try {
       await TaskCleanupService.adminCleanupAllCompletedTasks();
-    } catch (e) {
-      print('Error durante limpieza automática: $e');
+    } catch (e) {('Error durante limpieza automática: $e');
     }
   }
 

@@ -125,7 +125,7 @@ class _TaskCardSkeletonState extends State<TaskCardSkeleton>
         gradient: LinearGradient(
           colors: [
             AppColors.backgroundMedium,
-            AppColors.backgroundMedium.withOpacity(0.5),
+            AppColors.backgroundMedium.withValues(alpha: 0.5),
             AppColors.backgroundMedium,
           ],
           stops: const [0.0, 0.5, 1.0],
@@ -184,7 +184,7 @@ class UserCardSkeleton extends StatelessWidget {
                   height: 12,
                   width: 100,
                   decoration: BoxDecoration(
-                    color: AppColors.backgroundMedium.withOpacity(0.7),
+                    color: AppColors.backgroundMedium.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(AppBorderRadius.xs),
                   ),
                 ),
@@ -232,8 +232,8 @@ class EmptyStateWidget extends StatelessWidget {
                     ? AppColors.gradientCorporate
                     : LinearGradient(
                         colors: [
-                          AppColors.textSecondary.withOpacity(0.2),
-                          AppColors.textTertiary.withOpacity(0.1),
+                          AppColors.textSecondary.withValues(alpha: 0.2),
+                          AppColors.textTertiary.withValues(alpha: 0.1),
                         ],
                       ),
                 shape: BoxShape.circle,

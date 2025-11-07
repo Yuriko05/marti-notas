@@ -11,9 +11,9 @@ class AdminDashboard extends StatefulWidget {
   final UserModel admin;
 
   const AdminDashboard({
-    Key? key,
+    super.key,
     required this.admin,
-  }) : super(key: key);
+  });
 
   @override
   State<AdminDashboard> createState() => _AdminDashboardState();
@@ -45,21 +45,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
       final users = await AdminService.getAllUsers();
       
       // Obtener todas las tareas asignadas por el admin
-      final allTasks = await AdminService.getAssignedTasks();
-
-      print('📊 AdminDashboard: Cargados ${users.length} usuarios y ${allTasks.length} tareas');
+      final allTasks = await AdminService.getAssignedTasks();('📊 AdminDashboard: Cargados ${users.length} usuarios y ${allTasks.length} tareas');
 
       if (mounted) {
         setState(() {
           _allUsers = users.where((u) => !u.isAdmin).toList();
           _allTasks = allTasks;
           _isLoading = false;
-        });
-        
-        print('📊 AdminDashboard: Mostrando ${_allUsers.length} usuarios (no admin) y ${_allTasks.length} tareas');
+        });('📊 AdminDashboard: Mostrando ${_allUsers.length} usuarios (no admin) y ${_allTasks.length} tareas');
       }
-    } catch (e) {
-      print('❌ Error loading dashboard data: $e');
+    } catch (e) {('❌ Error loading dashboard data: $e');
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -69,14 +64,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
   void _subscribeToTasksStream() {
     _tasksSubscription?.cancel();
     _tasksSubscription = AdminService.streamAssignedTasks().listen((tasks) {
-      if (mounted) {
-        print('📊 AdminDashboard: Tareas actualizadas: ${tasks.length} tareas');
+      if (mounted) {('📊 AdminDashboard: Tareas actualizadas: ${tasks.length} tareas');
         setState(() {
           _allTasks = tasks;
         });
       }
-    }, onError: (e) {
-      print('❌ Error en stream de tareas: $e');
+    }, onError: (e) {('❌ Error en stream de tareas: $e');
     });
   }
 
@@ -86,12 +79,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
     int inProgress = 0;
     int completed = 0;
     int pendingReview = 0;
-    int overdue = 0;
-
-    print('📊 Calculando stats para ${_allTasks.length} tareas');
+    int overdue = 0;('📊 Calculando stats para ${_allTasks.length} tareas');
     
-    for (var task in _allTasks) {
-      print('   Tarea: "${task.title}" - Status: "${task.status.value}"');
+    for (var task in _allTasks) {('   Tarea: "${task.title}" - Status: "${task.status.value}"');
 
       if (task.isCompleted) {
         completed++;
@@ -117,9 +107,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       'completed': completed,
       'overdue': overdue,
       'total': _allTasks.length,
-    };
-    
-    print('📊 Stats calculadas: Total=${stats['total']}, Pendientes=${stats['pending']}, En Progreso=${stats['inProgress']}, En Revisión=${stats['pendingReview']}, Completadas=${stats['completed']}, Vencidas=${stats['overdue']}');
+    };('📊 Stats calculadas: Total=${stats['total']}, Pendientes=${stats['pending']}, En Progreso=${stats['inProgress']}, En Revisión=${stats['pendingReview']}, Completadas=${stats['completed']}, Vencidas=${stats['overdue']}');
     
     return stats;
   }
@@ -252,7 +240,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF667eea).withOpacity(0.1),
+                        color: const Color(0xFF667eea).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -335,7 +323,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           end: Alignment.bottomRight,
           colors: [
             AppColors.primary,
-            AppColors.primary.withOpacity(0.8),
+            AppColors.primary.withValues(alpha: 0.8),
           ],
         ),
       ),
@@ -344,7 +332,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         children: [
           CircleAvatar(
             radius: 32,
-            backgroundColor: Colors.white.withOpacity(0.3),
+            backgroundColor: Colors.white.withValues(alpha: 0.3),
             child: Text(
               widget.admin.name[0].toUpperCase(),
               style: const TextStyle(
@@ -362,7 +350,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 Text(
                   'Panel de Administración',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                     fontSize: 13,
                   ),
                 ),
@@ -396,7 +384,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -410,7 +398,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
@@ -567,7 +555,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF667eea).withOpacity(0.3),
+            color: const Color(0xFF667eea).withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -578,7 +566,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(
@@ -629,10 +617,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -668,7 +656,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -713,12 +701,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: hasOverdue
-              ? AppColors.error.withOpacity(0.3)
-              : Colors.grey.withOpacity(0.2),
+              ? AppColors.error.withValues(alpha: 0.3)
+              : Colors.grey.withValues(alpha: 0.2),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -731,7 +719,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundColor: AppColors.primary.withOpacity(0.1),
+                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                 child: Text(
                   user.name[0].toUpperCase(),
                   style: const TextStyle(
@@ -769,7 +757,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.error.withOpacity(0.1),
+                    color: AppColors.error.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -928,12 +916,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isOverdue
-              ? AppColors.error.withOpacity(0.3)
-              : Colors.grey.withOpacity(0.2),
+              ? AppColors.error.withValues(alpha: 0.3)
+              : Colors.grey.withValues(alpha: 0.2),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -947,7 +935,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(statusIcon, color: statusColor, size: 20),
@@ -990,7 +978,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.error.withOpacity(0.1),
+                    color: AppColors.error.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: const Text(
@@ -1007,8 +995,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: daysUntilDue <= 2
-                        ? Colors.orange.withOpacity(0.1)
-                        : Colors.grey.withOpacity(0.1),
+                        ? Colors.orange.withValues(alpha: 0.1)
+                        : Colors.grey.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -1061,18 +1049,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            const Color(0xFF667eea).withOpacity(0.05),
-            const Color(0xFF764ba2).withOpacity(0.05),
+            const Color(0xFF667eea).withValues(alpha: 0.05),
+            const Color(0xFF764ba2).withValues(alpha: 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: const Color(0xFF667eea).withOpacity(0.3),
+          color: const Color(0xFF667eea).withValues(alpha: 0.3),
           width: 2,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF667eea).withOpacity(0.1),
+            color: const Color(0xFF667eea).withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),

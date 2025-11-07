@@ -183,38 +183,38 @@ class AppColors {
   // ============================================================================
 
   static BoxShadow shadowSm = BoxShadow(
-    color: Colors.black.withOpacity(0.04),
+    color: Colors.black.withValues(alpha: 0.04),
     blurRadius: 4,
     offset: const Offset(0, 2),
   );
 
   static BoxShadow shadowMd = BoxShadow(
-    color: Colors.black.withOpacity(0.06),
+    color: Colors.black.withValues(alpha: 0.06),
     blurRadius: 8,
     offset: const Offset(0, 4),
   );
 
   static BoxShadow shadowLg = BoxShadow(
-    color: Colors.black.withOpacity(0.08),
+    color: Colors.black.withValues(alpha: 0.08),
     blurRadius: 16,
     offset: const Offset(0, 8),
   );
 
   static BoxShadow shadowXl = BoxShadow(
-    color: Colors.black.withOpacity(0.10),
+    color: Colors.black.withValues(alpha: 0.10),
     blurRadius: 24,
     offset: const Offset(0, 12),
   );
 
   // Sombras con color corporativo
   static BoxShadow shadowPrimary = BoxShadow(
-    color: primary.withOpacity(0.2),
+    color: primary.withValues(alpha: 0.2),
     blurRadius: 12,
     offset: const Offset(0, 4),
   );
 
   static BoxShadow shadowSecondary = BoxShadow(
-    color: secondary.withOpacity(0.3),
+    color: secondary.withValues(alpha: 0.3),
     blurRadius: 12,
     offset: const Offset(0, 4),
   );
@@ -524,7 +524,7 @@ class AppTheme {
       // Chips
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.backgroundMedium,
-        selectedColor: AppColors.secondary.withOpacity(0.2),
+        selectedColor: AppColors.secondary.withValues(alpha: 0.2),
         labelStyle: AppTextStyles.caption,
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.sm,

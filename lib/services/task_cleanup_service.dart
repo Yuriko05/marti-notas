@@ -10,19 +10,15 @@ class TaskCleanupService {
 
   /// Elimina automáticamente las tareas completadas después de 24 horas
   static Future<void> cleanupCompletedTasks() async {
-    try {
-      print('🧹 Iniciando limpieza de tareas completadas...');
+    try {('🧹 Iniciando limpieza de tareas completadas...');
 
       final currentUser = _auth.currentUser;
-      if (currentUser == null) {
-        print('❌ No hay usuario autenticado para limpieza');
+      if (currentUser == null) {('❌ No hay usuario autenticado para limpieza');
         return;
       }
 
       // Calcular fecha límite (24 horas atrás)
-      final cutoffTime = DateTime.now().subtract(const Duration(hours: 24));
-
-      print('⏰ Eliminando tareas completadas antes de: $cutoffTime');
+      final cutoffTime = DateTime.now().subtract(const Duration(hours: 24));('⏰ Eliminando tareas completadas antes de: $cutoffTime');
 
       // Consultar tareas completadas que son más antiguas de 24 horas
       final completedTasksQuery = await _firestore
@@ -31,8 +27,7 @@ class TaskCleanupService {
           .where('completedAt', isLessThan: cutoffTime)
           .get();
 
-      final tasksToDelete = completedTasksQuery.docs;
-      print('📋 Encontradas ${tasksToDelete.length} tareas para eliminar');
+      final tasksToDelete = completedTasksQuery.docs;('📋 Encontradas ${tasksToDelete.length} tareas para eliminar');
 
       final userDoc = await _firestore
           .collection(FirestoreCollections.users)
@@ -52,29 +47,23 @@ class TaskCleanupService {
             task.createdBy == currentUser.uid ||
             isAdmin) {
           batch.delete(taskDoc.reference);
-          deletedCount++;
-
-          print(
+          deletedCount++;(
               '🗑️ Programada eliminación: ${task.title} (completada: ${task.completedAt})');
         }
       }
 
       // Ejecutar eliminación en lote
       if (deletedCount > 0) {
-        await batch.commit();
-        print('✅ Limpieza completada: $deletedCount tareas eliminadas');
-      } else {
-        print('ℹ️ No hay tareas que requieran limpieza');
+        await batch.commit();('✅ Limpieza completada: $deletedCount tareas eliminadas');
+      } else {('ℹ️ No hay tareas que requieran limpieza');
       }
-    } catch (e) {
-      print('❌ Error durante la limpieza de tareas: $e');
+    } catch (e) {('❌ Error durante la limpieza de tareas: $e');
     }
   }
 
   /// Elimina automáticamente las tareas completadas de un usuario específico
   static Future<void> cleanupUserCompletedTasks(String userId) async {
-    try {
-      print('🧹 Limpiando tareas completadas del usuario: $userId');
+    try {('🧹 Limpiando tareas completadas del usuario: $userId');
 
       final cutoffTime = DateTime.now().subtract(const Duration(hours: 24));
 
@@ -95,12 +84,10 @@ class TaskCleanupService {
       }
 
       if (deletedCount > 0) {
-        await batch.commit();
-        print(
+        await batch.commit();(
             '✅ Eliminadas $deletedCount tareas completadas del usuario $userId');
       }
-    } catch (e) {
-      print('❌ Error limpiando tareas del usuario: $e');
+    } catch (e) {('❌ Error limpiando tareas del usuario: $e');
     }
   }
 
@@ -115,12 +102,9 @@ class TaskCleanupService {
           .collection(FirestoreCollections.users)
           .doc(currentUser.uid)
           .get();
-      if (userDoc.data()?['role'] != 'admin') {
-        print('❌ Solo administradores pueden ejecutar limpieza general');
+      if (userDoc.data()?['role'] != 'admin') {('❌ Solo administradores pueden ejecutar limpieza general');
         return;
-      }
-
-      print('🧹 [ADMIN] Iniciando limpieza general del sistema...');
+      }('🧹 [ADMIN] Iniciando limpieza general del sistema...');
 
       final cutoffTime = DateTime.now().subtract(const Duration(hours: 24));
 
@@ -139,14 +123,11 @@ class TaskCleanupService {
       }
 
       if (deletedCount > 0) {
-        await batch.commit();
-        print(
+        await batch.commit();(
             '✅ [ADMIN] Limpieza general completada: $deletedCount tareas eliminadas del sistema');
-      } else {
-        print('ℹ️ [ADMIN] No hay tareas que requieran limpieza general');
+      } else {('ℹ️ [ADMIN] No hay tareas que requieran limpieza general');
       }
-    } catch (e) {
-      print('❌ Error en limpieza general de administrador: $e');
+    } catch (e) {('❌ Error en limpieza general de administrador: $e');
     }
   }
 
@@ -192,8 +173,7 @@ class TaskCleanupService {
         'assignedTasks': assignedTasks,
         'totalTasks': isAdmin ? totalTasks : userTasks + assignedTasks,
       };
-    } catch (e) {
-      print('❌ Error obteniendo estadísticas de limpieza: $e');
+    } catch (e) {('❌ Error obteniendo estadísticas de limpieza: $e');
       return {};
     }
   }

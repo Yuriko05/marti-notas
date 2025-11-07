@@ -12,10 +12,8 @@ class UserTaskStats extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    print('📊 UserTaskStats: Recibidas ${allTasks.length} tareas para analizar');
-    for (var task in allTasks) {
-      print('   📋 Tarea: "${task.title}" - Status: "${task.status}" - isPending: ${task.isPending}, isInProgress: ${task.isInProgress}, isPendingReview: ${task.isPendingReview}, isCompleted: ${task.isCompleted}');
+  Widget build(BuildContext context) {('📊 UserTaskStats: Recibidas ${allTasks.length} tareas para analizar');
+    for (var task in allTasks) {('   📋 Tarea: "${task.title}" - Status: "${task.status}" - isPending: ${task.isPending}, isInProgress: ${task.isInProgress}, isPendingReview: ${task.isPendingReview}, isCompleted: ${task.isCompleted}');
     }
     
     final pending = allTasks.where((t) => t.isPending).length;
@@ -23,9 +21,7 @@ class UserTaskStats extends StatelessWidget {
     final pendingReview = allTasks.where((t) => t.isPendingReview).length;
     final completed = allTasks.where((t) => t.isCompleted).length;
     final overdue = allTasks.where((t) => t.isOverdue && !t.isCompleted).length;
-    final total = allTasks.length;
-    
-    print('📊 UserTaskStats: Total=$total, Pendientes=$pending, EnProgreso=$inProgress, EnRevisión=$pendingReview, Completadas=$completed, Vencidas=$overdue');
+    final total = allTasks.length;('📊 UserTaskStats: Total=$total, Pendientes=$pending, EnProgreso=$inProgress, EnRevisión=$pendingReview, Completadas=$completed, Vencidas=$overdue');
     
     // Calcular progreso
     final progress = total > 0 ? (completed / total) : 0.0;
@@ -178,9 +174,9 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: AppBorderRadius.mdRadius,
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [

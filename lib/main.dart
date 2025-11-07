@@ -19,7 +19,7 @@ import 'package:marti_notas/widgets/loading_widgets.dart';
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  print('📥 Mensaje en segundo plano: ${message.messageId}');
+  debugPrint('📥 Mensaje en segundo plano: ${message.messageId}');
   await NotificationService.handleBackgroundMessage(message);
 }
 

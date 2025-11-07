@@ -36,9 +36,7 @@ class _DeleteUserDialogState extends State<DeleteUserDialog> {
         isPasswordError = true;
       });
       return;
-    }
-
-    print('🗑️ Intentando eliminar usuario: ${widget.user.uid}');
+    }('🗑️ Intentando eliminar usuario: ${widget.user.uid}');
 
     try {
       final success = await AdminService.deleteUser(widget.user.uid);
@@ -46,17 +44,14 @@ class _DeleteUserDialogState extends State<DeleteUserDialog> {
       if (!mounted) return;
       Navigator.pop(context);
 
-      if (success) {
-        print('✅ Usuario eliminado exitosamente');
+      if (success) {('✅ Usuario eliminado exitosamente');
         _showSuccessDialog();
-      } else {
-        print('❌ Error al eliminar usuario');
+      } else {('❌ Error al eliminar usuario');
         _showErrorMessage();
       }
     } catch (e) {
       if (!mounted) return;
-      Navigator.pop(context);
-      print('💥 Excepción al eliminar usuario: $e');
+      Navigator.pop(context);('💥 Excepción al eliminar usuario: $e');
       _showExceptionMessage(e.toString());
     }
   }
@@ -73,7 +68,7 @@ class _DeleteUserDialogState extends State<DeleteUserDialog> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
+                color: Colors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(
@@ -200,7 +195,7 @@ class _DeleteUserDialogState extends State<DeleteUserDialog> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.red.shade600.withOpacity(0.1),
+              color: Colors.red.shade600.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(

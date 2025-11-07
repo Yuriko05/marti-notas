@@ -140,7 +140,7 @@ class TaskList extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: statusInfo['color'].withOpacity(0.1),
+                      color: statusInfo['color'].withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(

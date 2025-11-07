@@ -91,7 +91,7 @@ class _EditUserDialogState extends State<EditUserDialog> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade600.withOpacity(0.1),
+                    color: Colors.blue.shade600.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(

@@ -60,8 +60,8 @@ class _LoginScreenState extends State<LoginScreen>
 
     try {
       final rawInput = _emailController.text.trim();
-      final email = rawInput.contains('@') ? rawInput : '${rawInput}@gmail.com';
-      print('Intentando iniciar sesión: $email (entrada: $rawInput)');
+      final email = rawInput.contains('@') ? rawInput : '$rawInput@gmail.com';
+      debugPrint('Intentando iniciar sesión: $email (entrada: $rawInput)');
 
       // Usar login por email y contraseña (si el usuario ingresó solo nombre,
       // se concatena @gmail.com automáticamente)
@@ -78,9 +78,7 @@ class _LoginScreenState extends State<LoginScreen>
           );
         }
         return;
-      }
-
-      print('✅ Login exitoso: ${user.name} (${user.role})');
+      }('✅ Login exitoso: ${user.name} (${user.role})');
     } catch (e) {
       debugPrint('❌ Error inesperado en login: $e');
 
@@ -256,7 +254,7 @@ class _LoginScreenState extends State<LoginScreen>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),

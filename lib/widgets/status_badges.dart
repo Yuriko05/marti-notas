@@ -23,7 +23,7 @@ class TaskStatusIndicator extends StatelessWidget {
         vertical: size != null ? size! / 4 : AppSpacing.xs + 2,
       ),
       decoration: BoxDecoration(
-        color: _getStatusColor().withOpacity(0.12),
+        color: _getStatusColor().withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(size != null ? size! : 20),
         border: Border.all(
           color: _getStatusColor(),
@@ -103,7 +103,7 @@ class AdminBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(badgeSize),
         boxShadow: [
           BoxShadow(
-            color: AppColors.adminColor.withOpacity(0.3),
+            color: AppColors.adminColor.withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -160,7 +160,7 @@ class UserRoleBadge extends StatelessWidget {
         vertical: badgeSize * 0.33,
       ),
       decoration: BoxDecoration(
-        color: AppColors.userColor.withOpacity(0.15),
+        color: AppColors.userColor.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(badgeSize),
         border: Border.all(
           color: AppColors.userColor,
@@ -210,7 +210,7 @@ class PriorityIndicator extends StatelessWidget {
         vertical: AppSpacing.xs + 1,
       ),
       decoration: BoxDecoration(
-        color: _getPriorityColor().withOpacity(0.12),
+        color: _getPriorityColor().withValues(alpha: 0.12),
         borderRadius: AppBorderRadius.fullRadius,
         border: Border.all(
           color: _getPriorityColor(),

@@ -31,8 +31,7 @@ class UserService {
 
       // Si el usuario no existe en Firestore, crear uno con rol 'normal'
       return await _createUserInFirestore(firebaseUser);
-    } catch (e) {
-      print('Error al obtener usuario: $e');
+    } catch (e) {('Error al obtener usuario: $e');
       return null;
     }
   }
@@ -73,8 +72,7 @@ class UserService {
           'lastLogin': FieldValue.serverTimestamp(),
         });
       }
-    } catch (e) {
-      print('Error al actualizar último login: $e');
+    } catch (e) {('Error al actualizar último login: $e');
     }
   }
 
@@ -107,8 +105,7 @@ class UserService {
         );
       }
       return null;
-    } catch (e) {
-      print('Error al obtener usuario por ID: $e');
+    } catch (e) {('Error al obtener usuario por ID: $e');
       return null;
     }
   }
@@ -127,8 +124,7 @@ class UserService {
                 doc.id,
               ))
           .toList();
-    } catch (e) {
-      print('Error al obtener todos los usuarios: $e');
+    } catch (e) {('Error al obtener todos los usuarios: $e');
       return [];
     }
   }
@@ -141,8 +137,7 @@ class UserService {
           .doc(uid)
           .update({'role': newRole});
       return true;
-    } catch (e) {
-      print('Error al actualizar rol de usuario: $e');
+    } catch (e) {('Error al actualizar rol de usuario: $e');
       return false;
     }
   }
@@ -161,8 +156,7 @@ class UserService {
 
       throw UnimplementedError(
           'La creación de usuarios debe hacerse desde el backend por seguridad');
-    } catch (e) {
-      print('Error al crear usuario: $e');
+    } catch (e) {('Error al crear usuario: $e');
       return null;
     }
   }

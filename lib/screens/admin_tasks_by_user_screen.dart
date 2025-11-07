@@ -108,7 +108,7 @@ class _AdminTasksByUserScreenState extends State<AdminTasksByUserScreen> {
                 Text(
                   '${groupedTasks.length} usuarios con tareas',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white.withValues(alpha: 0.8),
                     fontSize: 14,
                   ),
                 ),
@@ -132,10 +132,10 @@ class _AdminTasksByUserScreenState extends State<AdminTasksByUserScreen> {
         style: const TextStyle(color: Colors.white),
         decoration: InputDecoration(
           hintText: 'Buscar usuario...',
-          hintStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
+          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
           prefixIcon: const Icon(Icons.search, color: Colors.white),
           filled: true,
-          fillColor: Colors.white.withOpacity(0.2),
+          fillColor: Colors.white.withValues(alpha: 0.2),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(15),
             borderSide: BorderSide.none,
@@ -154,12 +154,12 @@ class _AdminTasksByUserScreenState extends State<AdminTasksByUserScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.assignment_outlined,
-                size: 80, color: Colors.white.withOpacity(0.5)),
+                size: 80, color: Colors.white.withValues(alpha: 0.5)),
             const SizedBox(height: 20),
             Text(
               'No hay tareas asignadas',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.8),
+                color: Colors.white.withValues(alpha: 0.8),
                 fontSize: 18,
               ),
             ),
@@ -195,7 +195,7 @@ class _AdminTasksByUserScreenState extends State<AdminTasksByUserScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -250,9 +250,9 @@ class _AdminTasksByUserScreenState extends State<AdminTasksByUserScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(
         '$label: $count',
@@ -335,7 +335,7 @@ class _AdminTasksByUserScreenState extends State<AdminTasksByUserScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
+                    color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(

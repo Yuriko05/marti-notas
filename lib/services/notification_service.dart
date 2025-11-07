@@ -62,10 +62,10 @@ class NotificationService {
 
   /// Handler estático para mensajes en segundo plano - llamado desde main.dart
   static Future<void> handleBackgroundMessage(RemoteMessage message) async {
-    print('📥 Procesando mensaje en segundo plano: ${message.messageId}');
-    print('Título: ${message.notification?.title}');
-    print('Cuerpo: ${message.notification?.body}');
-    print('Data: ${message.data}');
+    debugPrint('📥 Procesando mensaje en segundo plano: ${message.messageId}');
+    debugPrint('Título: ${message.notification?.title}');
+    debugPrint('Cuerpo: ${message.notification?.body}');
+    debugPrint('Data: ${message.data}');
     
     // Mostrar notificación local si viene con notification payload
     if (message.notification != null) {
@@ -125,7 +125,7 @@ class NotificationService {
         provisional: false,
       );
 
-      print('📱 Permisos FCM: ${settings.authorizationStatus}');
+      debugPrint('📱 Permisos FCM: ${settings.authorizationStatus}');
 
       if (settings.authorizationStatus == AuthorizationStatus.authorized ||
           settings.authorizationStatus == AuthorizationStatus.provisional) {
@@ -134,7 +134,7 @@ class NotificationService {
 
         // Manejar mensajes cuando la app está en primer plano
         FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-          print('📥 Mensaje en primer plano: ${message.messageId}');
+          debugPrint('📥 Mensaje en primer plano: ${message.messageId}');
           
           if (message.notification != null) {
             // Mostrar notificación local cuando llega push en primer plano
@@ -149,23 +149,23 @@ class NotificationService {
 
         // Manejar cuando el usuario toca la notificación (app en segundo plano)
         FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-          print('📱 App abierta desde notificación: ${message.messageId}');
+          debugPrint('📱 App abierta desde notificación: ${message.messageId}');
           _handleNotificationTap(message.data);
         });
 
         // Manejar si la app se abrió desde una notificación (app cerrada)
   RemoteMessage? initialMessage = await _messaging.getInitialMessage();
         if (initialMessage != null) {
-          print('📱 App abierta desde notificación (cerrada): ${initialMessage.messageId}');
+          debugPrint('📱 App abierta desde notificación (cerrada): ${initialMessage.messageId}');
           _handleNotificationTap(initialMessage.data);
         }
 
-        print('✅ Firebase Cloud Messaging inicializado correctamente');
+        debugPrint('✅ Firebase Cloud Messaging inicializado correctamente');
       } else {
-        print('❌ Permisos de notificaciones push denegados');
+        debugPrint('❌ Permisos de notificaciones push denegados');
       }
     } catch (e) {
-      print('❌ Error inicializando FCM: $e');
+      debugPrint('❌ Error inicializando FCM: $e');
     }
   }
 
@@ -186,19 +186,19 @@ class NotificationService {
           'fcmTokensUpdatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
 
-  final preview = _formatTokenPreview(token);
-  print('✅ FCM Token agregado a fcmTokens: $preview (set merge)');
+        final preview = _formatTokenPreview(token);
+        debugPrint('✅ FCM Token agregado a fcmTokens: $preview (set merge)');
       }
 
       // Escuchar actualizaciones del token y añadir al array (evita duplicados automáticamente)
     _tokenRefreshSubscription =
       _messaging.onTokenRefresh.listen((newToken) async {
-        print('🔄 FCM Token actualizado: verificando usuario actual');
+        debugPrint('🔄 FCM Token actualizado: verificando usuario actual');
         try {
           // ⚠️ CRITICAL: Obtener usuario actual en el momento del refresh, no usar variable capturada
           final currentUser = _auth.currentUser;
           if (currentUser == null) {
-            print('⚠️ No hay usuario autenticado, no guardamos el token refresh');
+            debugPrint('⚠️ No hay usuario autenticado, no guardamos el token refresh');
             return;
           }
           
@@ -208,13 +208,13 @@ class NotificationService {
             'fcmTokens': FieldValue.arrayUnion([newToken]),
             'fcmTokensUpdatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
-          print('✅ Token refresh guardado para usuario: ${currentUser.uid}');
+          debugPrint('✅ Token refresh guardado para usuario: ${currentUser.uid}');
         } catch (e) {
-          print('❌ Error guardando nuevo token: $e');
+          debugPrint('❌ Error guardando nuevo token: $e');
         }
       });
     } catch (e) {
-      print('❌ Error guardando FCM token: $e');
+      debugPrint('❌ Error guardando FCM token: $e');
     }
   }
 
@@ -229,18 +229,18 @@ class NotificationService {
     try {
   return await _messaging.getToken();
     } catch (e) {
-      print('❌ Error obteniendo FCM token: $e');
+      debugPrint('❌ Error obteniendo FCM token: $e');
       return null;
     }
   }
 
   /// Manejar cuando se toca una notificación push
   static void _handleNotificationTap(Map<String, dynamic> data) {
-    print('🔔 Notificación tocada con data: $data');
+    debugPrint('🔔 Notificación tocada con data: $data');
     // TODO: Implementar navegación a la tarea específica
     final taskId = data['taskId'];
     if (taskId != null) {
-      print('📋 Navegar a tarea: $taskId');
+      debugPrint('📋 Navegar a tarea: $taskId');
       // Aquí puedes implementar navegación usando un NavigatorKey global
     }
   }
@@ -265,7 +265,7 @@ class NotificationService {
   /// Manejar cuando se toca una notificación
   static void _onNotificationTapped(NotificationResponse response) {
     // TODO: Implementar navegación a la tarea específica
-    print('Notificación tocada: ${response.payload}');
+    debugPrint('Notificación tocada: ${response.payload}');
   }
 
   /// Solicitar permisos de notificación
@@ -392,7 +392,7 @@ class NotificationService {
       if (_tokenRefreshSubscription != null) {
         await _tokenRefreshSubscription!.cancel();
         _tokenRefreshSubscription = null;
-        print('✅ Listener de token refresh cancelado');
+        debugPrint('✅ Listener de token refresh cancelado');
       }
 
     await _firestore
@@ -406,12 +406,12 @@ class NotificationService {
       try {
   await _messaging.deleteToken();
       } catch (e) {
-        print('⚠️ No se pudo eliminar el token localmente: $e');
+        debugPrint('⚠️ No se pudo eliminar el token localmente: $e');
       }
 
-      print('✅ FCM Token eliminado del arreglo y token local borrado');
+      debugPrint('✅ FCM Token eliminado del arreglo y token local borrado');
     } catch (e) {
-      print('❌ Error eliminando FCM token: $e');
+      debugPrint('❌ Error eliminando token: $e');
     }
   }
 
@@ -437,8 +437,7 @@ class NotificationService {
         scheduledTime: scheduledTime,
         payload: 'daily_reminder',
       );
-    } catch (e) {
-      print('Error programando recordatorio diario: $e');
+    } catch (e) {('Error programando recordatorio diario: $e');
     }
   }
 
@@ -488,8 +487,7 @@ class NotificationService {
           }
         }
       }
-    } catch (e) {
-      print('Error programando notificaciones de vencimiento: $e');
+    } catch (e) {('Error programando notificaciones de vencimiento: $e');
     }
   }
 
@@ -536,12 +534,10 @@ class NotificationService {
         }
       }
 
-      if (newTasksCount > 0) {
-        print(
+      if (newTasksCount > 0) {(
             '✅ Verificación al login: $newTasksCount tareas nuevas encontradas');
       }
-    } catch (e) {
-      print('Error verificando nuevas tareas asignadas: $e');
+    } catch (e) {('Error verificando nuevas tareas asignadas: $e');
     }
   }
 
@@ -549,8 +545,7 @@ class NotificationService {
   static Future<void> setupLoginNotifications() async {
     // Solicitar permisos
     final hasPermission = await requestPermissions();
-    if (!hasPermission) {
-      print('Permisos de notificación denegados');
+    if (!hasPermission) {('Permisos de notificación denegados');
       return;
     }
 
@@ -561,9 +556,7 @@ class NotificationService {
     await scheduleDailyReminder();
 
     // Programar notificaciones de vencimiento de tareas
-    await scheduleTaskDueNotifications();
-
-    print('Notificaciones configuradas exitosamente');
+    await scheduleTaskDueNotifications();('Notificaciones configuradas exitosamente');
   }
 
   /// Limpiar notificaciones de tareas completadas
@@ -602,10 +595,8 @@ class NotificationService {
         title: '📋 Nueva Tarea Asignada',
         body: '$adminName te asignó: "$taskTitle"',
         payload: 'task_assigned_$taskId',
-      );
-      print('✅ Notificación de asignación enviada: $taskTitle');
-    } catch (e) {
-      print('❌ Error enviando notificación de asignación: $e');
+      );('✅ Notificación de asignación enviada: $taskTitle');
+    } catch (e) {('❌ Error enviando notificación de asignación: $e');
     }
   }
 
@@ -620,10 +611,8 @@ class NotificationService {
         title: '✅ Tarea Aceptada',
         body: 'Tu tarea "$taskTitle" fue confirmada por el administrador',
         payload: 'task_accepted_$taskId',
-      );
-      print('✅ Notificación de aceptación enviada: $taskTitle');
-    } catch (e) {
-      print('❌ Error enviando notificación de aceptación: $e');
+      );('✅ Notificación de aceptación enviada: $taskTitle');
+    } catch (e) {('❌ Error enviando notificación de aceptación: $e');
     }
   }
 
@@ -643,10 +632,8 @@ class NotificationService {
         title: '❌ Tarea Rechazada',
         body: body,
         payload: 'task_rejected_$taskId',
-      );
-      print('✅ Notificación de rechazo enviada: $taskTitle');
-    } catch (e) {
-      print('❌ Error enviando notificación de rechazo: $e');
+      );('✅ Notificación de rechazo enviada: $taskTitle');
+    } catch (e) {('❌ Error enviando notificación de rechazo: $e');
     }
   }
 
@@ -685,11 +672,8 @@ class NotificationService {
           scheduledTime: task.dueDate,
           payload: 'personal_task_due_${task.id}',
         );
-      }
-
-      print('✅ Notificaciones programadas para tarea personal: ${task.title}');
-    } catch (e) {
-      print('❌ Error programando notificaciones personales: $e');
+      }('✅ Notificaciones programadas para tarea personal: ${task.title}');
+    } catch (e) {('❌ Error programando notificaciones personales: $e');
     }
   }
 
@@ -704,10 +688,8 @@ class NotificationService {
         title: '🎉 ¡Tarea Completada!',
         body: 'Completaste: "$taskTitle"',
         payload: 'personal_task_completed_$taskId',
-      );
-      print('✅ Notificación de tarea personal completada: $taskTitle');
-    } catch (e) {
-      print('❌ Error enviando notificación de completación: $e');
+      );('✅ Notificación de tarea personal completada: $taskTitle');
+    } catch (e) {('❌ Error enviando notificación de completación: $e');
     }
   }
 
@@ -720,10 +702,8 @@ class NotificationService {
       await cancelNotification(taskId.hashCode + 11);
       await cancelNotification(taskId.hashCode + 100);
       await cancelNotification(taskId.hashCode + 200);
-      await cancelNotification(taskId.hashCode + 300);
-      print('🗑️ Notificaciones canceladas para tarea: $taskId');
-    } catch (e) {
-      print('❌ Error cancelando notificaciones: $e');
+      await cancelNotification(taskId.hashCode + 300);('🗑️ Notificaciones canceladas para tarea: $taskId');
+    } catch (e) {('❌ Error cancelando notificaciones: $e');
     }
   }
 
@@ -768,8 +748,6 @@ class NotificationService {
       'Te han asignado: "$taskTitle"',
       platformDetails,
       payload: 'instant_task_notification',
-    );
-
-    print('✅ Notificación instantánea enviada: $taskTitle para $userName');
+    );('✅ Notificación instantánea enviada: $taskTitle para $userName');
   }
 }

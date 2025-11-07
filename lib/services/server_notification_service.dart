@@ -18,9 +18,7 @@ class ServerNotificationService {
           .where('userId', isEqualTo: user.uid)
           .where('read', isEqualTo: false)
           .orderBy('sentAt', descending: true)
-          .get();
-
-      print(
+          .get();(
           '📨 Verificando notificaciones del servidor: ${notificationsQuery.docs.length} encontradas');
 
       for (final doc in notificationsQuery.docs) {
@@ -40,8 +38,7 @@ class ServerNotificationService {
 
       // Limpiar notificaciones antiguas (más de 7 días)
       await _cleanOldNotifications();
-    } catch (e) {
-      print('Error verificando notificaciones del servidor: $e');
+    } catch (e) {('Error verificando notificaciones del servidor: $e');
     }
   }
 
@@ -61,13 +58,10 @@ class ServerNotificationService {
         for (final doc in oldNotifications.docs) {
           batch.delete(doc.reference);
         }
-        await batch.commit();
-
-        print(
+        await batch.commit();(
             '🧹 Limpiadas ${oldNotifications.docs.length} notificaciones antiguas');
       }
-    } catch (e) {
-      print('Error limpiando notificaciones antiguas: $e');
+    } catch (e) {('Error limpiando notificaciones antiguas: $e');
     }
   }
 
@@ -93,8 +87,7 @@ class ServerNotificationService {
           .collection('notifications')
           .doc(notificationId)
           .update({'read': true});
-    } catch (e) {
-      print('Error marcando notificación como leída: $e');
+    } catch (e) {('Error marcando notificación como leída: $e');
     }
   }
 
@@ -111,8 +104,7 @@ class ServerNotificationService {
           .get();
 
       return query.docs.length;
-    } catch (e) {
-      print('Error obteniendo conteo de notificaciones: $e');
+    } catch (e) {('Error obteniendo conteo de notificaciones: $e');
       return 0;
     }
   }

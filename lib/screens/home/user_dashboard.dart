@@ -28,18 +28,15 @@ class _UserDashboardState extends State<UserDashboard> {
     _loadTasks();
   }
 
-  void _loadTasks() {
-    print('📊 UserDashboard: Iniciando carga de tareas para usuario ${widget.user.uid}');
+  void _loadTasks() {('📊 UserDashboard: Iniciando carga de tareas para usuario ${widget.user.uid}');
     TaskService.getUserTasks(widget.user.uid).listen((tasks) {
-      if (mounted) {
-        print('📊 UserDashboard: Recibidas ${tasks.length} tareas');
+      if (mounted) {('📊 UserDashboard: Recibidas ${tasks.length} tareas');
         setState(() {
           allTasks = tasks;
           isLoading = false;
         });
       }
-    }, onError: (error) {
-      print('❌ UserDashboard: Error cargando tareas: $error');
+    }, onError: (error) {('❌ UserDashboard: Error cargando tareas: $error');
       if (mounted) {
         setState(() {
           isLoading = false;
@@ -115,7 +112,7 @@ class _UserDashboardState extends State<UserDashboard> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF667eea).withOpacity(0.4),
+            color: const Color(0xFF667eea).withValues(alpha: 0.4),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -127,11 +124,11 @@ class _UserDashboardState extends State<UserDashboard> {
             width: 90,
             height: 90,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(45),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.white.withOpacity(0.3),
+                  color: Colors.white.withValues(alpha: 0.3),
                   blurRadius: 15,
                   offset: const Offset(0, 5),
                 ),
@@ -157,7 +154,7 @@ class _UserDashboardState extends State<UserDashboard> {
             'Tu panel de control personal',
             style: TextStyle(
               fontSize: 16,
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
             ),
             textAlign: TextAlign.center,
           ),
@@ -184,7 +181,7 @@ class _UserDashboardState extends State<UserDashboard> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFfc4a1a).withOpacity(0.1),
+                  color: const Color(0xFFfc4a1a).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
@@ -299,7 +296,7 @@ class _UserDashboardState extends State<UserDashboard> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF667eea).withOpacity(0.1),
+                  color: const Color(0xFF667eea).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
@@ -360,7 +357,7 @@ class _UserDashboardState extends State<UserDashboard> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: isOverdue
-            ? const Color(0xFFfc4a1a).withOpacity(0.05)
+            ? const Color(0xFFfc4a1a).withValues(alpha: 0.05)
             : Colors.grey[50],
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
@@ -418,7 +415,7 @@ class _UserDashboardState extends State<UserDashboard> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF667eea).withOpacity(0.1),
+                          color: const Color(0xFF667eea).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: const Text(

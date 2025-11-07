@@ -37,7 +37,7 @@ class StorageService {
 
       // Crear nombre único para el archivo
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final fileName = 'task_${taskId}_${timestamp}.jpg';
+      final fileName = 'task_$taskId\_$timestamp.jpg';
       final path = 'task_evidence/${user.uid}/$fileName';
 
       // Subir archivo (compatible con Web y móvil)

@@ -23,7 +23,7 @@ class AdminUsersHeader extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.red.shade200.withOpacity(0.5),
+            color: Colors.red.shade200.withValues(alpha: 0.5),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),

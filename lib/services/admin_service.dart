@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../constants/firestore_collections.dart';
 import '../models/user_model.dart';
 import '../models/task_model.dart';
@@ -27,9 +28,7 @@ class AdminService {
       final isAdmin = await AuthService.isCurrentUserAdmin();
       if (!isAdmin) {
         throw Exception('No tienes permisos de administrador');
-      }
-
-      print('👤 Admin creando usuario via Cloud Function: $name ($role)');
+      }('👤 Admin creando usuario via Cloud Function: $name ($role)');
 
       // Usar Cloud Function (NO cierra sesión del admin)
       final result = await CloudFunctionsService.createUser(
@@ -38,15 +37,12 @@ class AdminService {
         role: role,
       );
 
-      if (result != null && result['success'] == true) {
-        print('✅ Usuario creado exitosamente: ${result['name']} (${result['uid']})');
+      if (result != null && result['success'] == true) {('✅ Usuario creado exitosamente: ${result['name']} (${result['uid']})');
         return result;
-      } else {
-        print('❌ Error en Cloud Function: ${result?['message']}');
+      } else {('❌ Error en Cloud Function: ${result?['message']}');
         return result;
       }
-    } catch (e) {
-      print('❌ Error creando usuario: $e');
+    } catch (e) {('❌ Error creando usuario: $e');
       return {
         'success': false,
         'error': 'exception',
@@ -72,17 +68,14 @@ class AdminService {
       final isAdmin = await AuthService.isCurrentUserAdmin();
       if (!isAdmin) {
         throw Exception('No tienes permisos de administrador');
-      }
-
-      print('👤 Admin creando usuario (método legacy): $name ($role)');
+      }('👤 Admin creando usuario (método legacy): $name ($role)');
 
       return await AuthService.registerWithNameAndPassword(
         name: name,
         password: password,
         role: role,
       );
-    } catch (e) {
-      print('Error creando usuario: $e');
+    } catch (e) {('Error creando usuario: $e');
       return null;
     }
   }
@@ -112,8 +105,7 @@ class AdminService {
       return querySnapshot.docs
           .map((doc) => UserModel.fromFirestore(doc.data(), doc.id))
           .toList();
-    } catch (e) {
-      print('Error obteniendo usuarios: $e');
+    } catch (e) {('Error obteniendo usuarios: $e');
       return [];
     }
   }
@@ -147,65 +139,53 @@ class AdminService {
       });
 
       return true;
-    } catch (e) {
-      print('Error actualizando usuario: $e');
+    } catch (e) {('Error actualizando usuario: $e');
       return false;
     }
   }
 
   /// Eliminar usuario (solo para administradores)
   static Future<bool> deleteUser(String userId) async {
-    try {
-      print('🗑️ Iniciando eliminación de usuario: $userId');
+    try {('🗑️ Iniciando eliminación de usuario: $userId');
 
       final currentUser = AuthService.currentUser;
-      if (currentUser == null) {
-        print('❌ Error: No hay usuario autenticado');
+      if (currentUser == null) {('❌ Error: No hay usuario autenticado');
         return false;
-      }
-
-      print('✅ Usuario actual autenticado: ${currentUser.uid}');
+      }('✅ Usuario actual autenticado: ${currentUser.uid}');
 
       final currentUserDoc = await _firestore
           .collection(FirestoreCollections.users)
           .doc(currentUser.uid)
           .get();
 
-      if (!currentUserDoc.exists) {
-        print('❌ Error: Documento del usuario actual no existe');
+      if (!currentUserDoc.exists) {('❌ Error: Documento del usuario actual no existe');
         return false;
       }
 
-      final userData = currentUserDoc.data();
-      print('📄 Datos del usuario actual: $userData');
+      final userData = currentUserDoc.data();('📄 Datos del usuario actual: $userData');
 
-      if (userData?['role'] != 'admin') {
-        print(
+      if (userData?['role'] != 'admin') {(
             '❌ Error: Usuario no tiene permisos de administrador. Rol: ${userData?['role']}');
         return false;
       }
 
       // No permitir que el admin se elimine a sí mismo
-      if (userId == currentUser.uid) {
-        print('❌ Error: No se puede eliminar a sí mismo');
+      if (userId == currentUser.uid) {('❌ Error: No se puede eliminar a sí mismo');
         throw Exception('No puedes eliminarte a ti mismo');
-      }
-
-      print('🔍 Verificando que el usuario a eliminar existe...');
+      }('🔍 Verificando que el usuario a eliminar existe...');
     final userToDeleteDoc = await _firestore
       .collection(FirestoreCollections.users)
       .doc(userId)
       .get();
 
       if (!userToDeleteDoc.exists) {
-        print('❌ Error: El usuario a eliminar no existe');
+        debugPrint('❌ Error: El usuario a eliminar no existe');
         return false;
       }
 
       final userToDeleteData = userToDeleteDoc.data() as Map<String, dynamic>;
       final String userEmail = userToDeleteData['email'] ?? '';
-
-      print('✅ Usuario a eliminar encontrado: ${userToDeleteData}');
+      debugPrint('✅ Usuario a eliminar encontrado: $userToDeleteData');
 
       // Usar AuthService para eliminar el usuario (intentará eliminar de Auth y Firestore)
       final success = await AuthService.deleteUserAsAdmin(
@@ -213,16 +193,12 @@ class AdminService {
         userEmail: userEmail,
       );
 
-      if (success) {
-        print('✅ Usuario eliminado correctamente');
+      if (success) {('✅ Usuario eliminado correctamente');
         return true;
-      } else {
-        print('❌ Error al eliminar usuario');
+      } else {('❌ Error al eliminar usuario');
         return false;
       }
-    } catch (e) {
-      print('❌ Error eliminando usuario: $e');
-      print('📍 Stack trace: ${StackTrace.current}');
+    } catch (e) {('❌ Error eliminando usuario: $e');('📍 Stack trace: ${StackTrace.current}');
       return false;
     }
   }
@@ -264,15 +240,13 @@ class AdminService {
       final assignedUserData = assignedUserDoc.data();
       final assignedUserRole = assignedUserData?['role'] ?? 'normal';
       // Evitar asignar tareas a administradores
-      if (assignedUserRole == 'admin') {
-        print('Intento de asignar tarea a un usuario con rol admin: $assignedToUserId');
+      if (assignedUserRole == 'admin') {('Intento de asignar tarea a un usuario con rol admin: $assignedToUserId');
         throw Exception('No se puede asignar tareas a usuarios con rol admin');
       }
       // Si existe un flag "active" y está en false, evitar asignar
       if (assignedUserData != null && assignedUserData.containsKey('active')) {
         final isActive = assignedUserData['active'] == true;
-        if (!isActive) {
-          print('Intento de asignar tarea a un usuario inactivo: $assignedToUserId');
+        if (!isActive) {('Intento de asignar tarea a un usuario inactivo: $assignedToUserId');
           throw Exception('El usuario asignado está inactivo');
         }
       }
@@ -308,8 +282,7 @@ class AdminService {
           actorRole: currentUserDoc.data()?['role'] ?? 'admin',
           payload: {'before': null, 'after': taskModel.toFirestore()},
         );
-      } catch (e) {
-        print('Warning: no se pudo escribir history para la tarea ${docRef.id}: $e');
+      } catch (e) {('Warning: no se pudo escribir history para la tarea ${docRef.id}: $e');
       }
 
       // 🔔 NO enviar notificación local aquí
@@ -317,8 +290,7 @@ class AdminService {
       // (sendTaskAssignedNotification se activa cuando se crea una nueva tarea)
 
       return docRef.id;
-    } catch (e) {
-      print('Error asignando tarea: $e');
+    } catch (e) {('Error asignando tarea: $e');
       return null;
     }
   }
@@ -373,8 +345,7 @@ class AdminService {
         'completedTasks': completedTasks,
         'totalNotes': totalNotes,
       };
-    } catch (e) {
-      print('Error obteniendo estadísticas: $e');
+    } catch (e) {('Error obteniendo estadísticas: $e');
       return null;
     }
   }
@@ -404,8 +375,7 @@ class AdminService {
       return querySnapshot.docs
           .map((doc) => TaskModel.fromFirestore(doc.data(), doc.id))
           .toList();
-    } catch (e) {
-      print('Error obteniendo tareas asignadas: $e');
+    } catch (e) {('Error obteniendo tareas asignadas: $e');
       return [];
     }
   }
@@ -427,8 +397,7 @@ class AdminService {
                 .map((doc) => TaskModel.fromFirestore(doc.data(), doc.id))
                 .toList(),
           );
-    } catch (e) {
-      print('Error creando stream de tareas asignadas: $e');
+    } catch (e) {('Error creando stream de tareas asignadas: $e');
       return const Stream.empty();
     }
   }
@@ -442,8 +411,7 @@ class AdminService {
     required DateTime dueDate,
     String? priority,
   }) async {
-    try {
-      print('🔄 Actualizando tarea: $taskId');
+    try {('🔄 Actualizando tarea: $taskId');
 
       final currentUser = AuthService.currentUser;
       if (currentUser == null) return false;
@@ -457,15 +425,13 @@ class AdminService {
           .collection(FirestoreCollections.users)
           .doc(assignedToUserId)
           .get();
-      if (!assignedUserDoc.exists) {
-        print('❌ Error: usuario asignado no existe: $assignedToUserId');
+      if (!assignedUserDoc.exists) {('❌ Error: usuario asignado no existe: $assignedToUserId');
         return false;
       }
 
       final assignedUserData = assignedUserDoc.data();
       final assignedUserRole = assignedUserData?['role'] ?? 'normal';
-      if (assignedUserRole == 'admin') {
-        print('❌ Error: no se permite asignar/actualizar tarea para usuario admin: $assignedToUserId');
+      if (assignedUserRole == 'admin') {('❌ Error: no se permite asignar/actualizar tarea para usuario admin: $assignedToUserId');
         return false;
       }
 
@@ -504,22 +470,17 @@ class AdminService {
           actorRole: currentUserDoc.data()?['role'] ?? 'admin',
           payload: {'before': prevData, 'after': afterData},
         );
-      } catch (e) {
-        print('Warning: no se pudo escribir history para la actualización $taskId: $e');
-      }
-
-      print('✅ Tarea actualizada exitosamente');
+      } catch (e) {('Warning: no se pudo escribir history para la actualización $taskId: $e');
+      }('✅ Tarea actualizada exitosamente');
       return true;
-    } catch (e) {
-      print('❌ Error actualizando tarea: $e');
+    } catch (e) {('❌ Error actualizando tarea: $e');
       return false;
     }
   }
 
   /// Reasignar una tarea a otro usuario (para bulk actions)
   static Future<bool> reassignTask(String taskId, String newAssignedToUserId) async {
-    try {
-      print('🔄 Reasignando tarea: $taskId -> $newAssignedToUserId');
+    try {('🔄 Reasignando tarea: $taskId -> $newAssignedToUserId');
 
       final currentUser = AuthService.currentUser;
       if (currentUser == null) return false;
@@ -533,15 +494,13 @@ class AdminService {
           .collection(FirestoreCollections.users)
           .doc(newAssignedToUserId)
           .get();
-      if (!assignedUserDoc.exists) {
-        print('❌ Error: usuario asignado no existe: $newAssignedToUserId');
+      if (!assignedUserDoc.exists) {('❌ Error: usuario asignado no existe: $newAssignedToUserId');
         return false;
       }
 
       final assignedUserData = assignedUserDoc.data();
       final assignedUserRole = assignedUserData?['role'] ?? 'normal';
-      if (assignedUserRole == 'admin') {
-        print('❌ Error: no se permite asignar tarea a usuario admin: $newAssignedToUserId');
+      if (assignedUserRole == 'admin') {('❌ Error: no se permite asignar tarea a usuario admin: $newAssignedToUserId');
         return false;
       }
 
@@ -571,22 +530,17 @@ class AdminService {
             'to': newAssignedToUserId,
           },
         );
-      } catch (e) {
-        print('Warning: no se pudo escribir history para la reasignación $taskId: $e');
-      }
-
-      print('✅ Tarea reasignada exitosamente');
+      } catch (e) {('Warning: no se pudo escribir history para la reasignación $taskId: $e');
+      }('✅ Tarea reasignada exitosamente');
       return true;
-    } catch (e) {
-      print('❌ Error reasignando tarea: $e');
+    } catch (e) {('❌ Error reasignando tarea: $e');
       return false;
     }
   }
 
   /// Eliminar una tarea
   static Future<bool> deleteTask(String taskId) async {
-    try {
-      print('🗑️ Eliminando tarea: $taskId');
+    try {('🗑️ Eliminando tarea: $taskId');
 
       // Obtener snapshot previo para registro
       final taskDocRef = _firestore
@@ -618,16 +572,12 @@ class AdminService {
           actorRole: actorRole,
           payload: {'before': prevData, 'after': null},
         );
-      } catch (e) {
-        print('Warning: no se pudo escribir history antes de eliminar $taskId: $e');
+      } catch (e) {('Warning: no se pudo escribir history antes de eliminar $taskId: $e');
       }
 
-      await taskDocRef.delete();
-
-      print('✅ Tarea eliminada exitosamente');
+      await taskDocRef.delete();('✅ Tarea eliminada exitosamente');
       return true;
-    } catch (e) {
-      print('❌ Error eliminando tarea: $e');
+    } catch (e) {('❌ Error eliminando tarea: $e');
       return false;
     }
   }

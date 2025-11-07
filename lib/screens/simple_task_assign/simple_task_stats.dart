@@ -69,8 +69,8 @@ class SimpleTaskStats extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    AppColors.overdueColor.withOpacity(0.1),
-                    AppColors.overdueLight.withOpacity(0.2),
+                    AppColors.overdueColor.withValues(alpha: 0.1),
+                    AppColors.overdueLight.withValues(alpha: 0.2),
                   ],
                 ),
                 borderRadius: AppBorderRadius.smRadius,
@@ -105,7 +105,7 @@ class SimpleTaskStats extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(AppSpacing.sm),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
+            color: color.withValues(alpha: 0.12),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: color, size: AppIconSizes.md),
