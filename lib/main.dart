@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:provider/provider.dart';
 import 'package:marti_notas/firebase_options.dart';
 import 'package:marti_notas/screens/home_screen.dart';
@@ -14,6 +15,14 @@ import 'package:marti_notas/providers/note_provider.dart';
 import 'package:marti_notas/theme/app_theme.dart';
 import 'package:marti_notas/widgets/loading_widgets.dart';
 
+/// Handler global para notificaciones en segundo plano
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  print('📥 Mensaje en segundo plano: ${message.messageId}');
+  await NotificationService.handleBackgroundMessage(message);
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -21,6 +30,9 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // ⚠️ CRITICAL: Registrar el handler de background ANTES de runApp()
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   // Inicializar notificaciones
   await NotificationService.initialize();

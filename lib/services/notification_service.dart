@@ -6,14 +6,6 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 import '../models/task_model.dart';
 
-/// Handler para notificaciones en segundo plano
-@pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  print('📥 Mensaje en segundo plano: ${message.messageId}');
-  print('Título: ${message.notification?.title}');
-  print('Cuerpo: ${message.notification?.body}');
-}
-
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
@@ -23,6 +15,24 @@ class NotificationService {
   static const String _channelName = 'Notificaciones de Tareas';
   static const String _channelDescription =
       'Notificaciones para tareas y recordatorios';
+
+  /// Handler estático para mensajes en segundo plano - llamado desde main.dart
+  static Future<void> handleBackgroundMessage(RemoteMessage message) async {
+    print('📥 Procesando mensaje en segundo plano: ${message.messageId}');
+    print('Título: ${message.notification?.title}');
+    print('Cuerpo: ${message.notification?.body}');
+    print('Data: ${message.data}');
+    
+    // Mostrar notificación local si viene con notification payload
+    if (message.notification != null) {
+      await showNotification(
+        id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
+        title: message.notification!.title ?? 'Nueva notificación',
+        body: message.notification!.body ?? '',
+        payload: message.data['taskId'] ?? '',
+      );
+    }
+  }
 
   /// Inicializar el servicio de notificaciones (locales + push)
   static Future<void> initialize() async {
@@ -77,9 +87,6 @@ class NotificationService {
           settings.authorizationStatus == AuthorizationStatus.provisional) {
         // Obtener y guardar FCM token
         await _saveFCMToken();
-
-        // Configurar handler para mensajes en segundo plano
-        FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
         // Manejar mensajes cuando la app está en primer plano
         FirebaseMessaging.onMessage.listen((RemoteMessage message) {
