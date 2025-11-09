@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/task_model.dart';
 import '../models/user_model.dart';
 import '../utils/logger.dart';
+import 'completed_tasks_service.dart';
 import 'history_service.dart';
 import 'notification_service.dart';
 
@@ -208,6 +209,19 @@ class TaskService {
           'reviewComment': reviewComment,
         },
       );
+
+      // Registrar tarea completada en historial
+      try {
+        final completedTask = afterData != null
+            ? TaskModel.fromFirestore(afterData, taskId)
+            : null;
+        if (completedTask != null) {
+          await CompletedTasksService.recordCompletedTask(completedTask);
+        }
+      } catch (e) {
+        AppLogger.warning('Error guardando en historial de completadas: $e',
+            name: 'TaskService');
+      }
 
       AppLogger.success('Tarea $taskId aprobada por admin', name: 'TaskService');
       return true;
@@ -428,6 +442,19 @@ class TaskService {
         actorRole: null,
         payload: {'before': prevData, 'after': afterData},
       );
+
+      // Registrar tarea completada en historial
+      try {
+        final completedTask = afterData != null
+            ? TaskModel.fromFirestore(afterData, taskId)
+            : null;
+        if (completedTask != null) {
+          await CompletedTasksService.recordCompletedTask(completedTask);
+        }
+      } catch (e) {
+        AppLogger.warning('Error guardando en historial de completadas: $e',
+            name: 'TaskService');
+      }
 
       // 🔔 Notificación y cancelar notificaciones programadas
       if (task != null) {

@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 class SimpleTaskHeader extends StatelessWidget {
   final VoidCallback onBack;
   final VoidCallback onRefresh;
+  final VoidCallback? onOpenHistory;
 
   const SimpleTaskHeader({
     super.key,
     required this.onBack,
     required this.onRefresh,
+    this.onOpenHistory,
   });
 
   @override
@@ -56,8 +58,15 @@ class SimpleTaskHeader extends StatelessWidget {
               ],
             ),
           ),
+          if (onOpenHistory != null)
+            IconButton(
+              icon: Icon(Icons.history, color: Colors.grey.shade700),
+              tooltip: 'Historial de tareas completadas',
+              onPressed: onOpenHistory,
+            ),
           IconButton(
             icon: Icon(Icons.refresh, color: Colors.grey.shade700),
+            tooltip: 'Actualizar',
             onPressed: onRefresh,
           ),
         ],

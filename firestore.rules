@@ -132,5 +132,25 @@ service cloud.firestore {
       // Los administradores pueden leer y escribir todo
       allow read, write: if isAdmin();
     }
+    
+    // Reglas para tareas completadas
+    match /completed_tasks/{taskId} {
+      // Función auxiliar para verificar si el usuario es admin
+      function isAdmin() {
+        return request.auth != null && 
+               exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+               get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      }
+      
+      // Los usuarios pueden leer sus propias tareas completadas
+      allow read: if request.auth != null && 
+                     resource.data.assignedTo == request.auth.uid;
+      
+      // Solo los administradores pueden escribir (crear/actualizar/eliminar)
+      allow write: if isAdmin();
+      
+      // Los administradores pueden leer todas las tareas completadas
+      allow read: if isAdmin();
+    }
   }
 }

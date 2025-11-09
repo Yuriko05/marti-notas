@@ -14,7 +14,7 @@ import 'simple_task_assign/simple_task_search_bar.dart';
 import 'simple_task_assign/simple_task_list.dart';
 import 'simple_task_assign/task_dialogs.dart';
 import 'simple_task_assign/bulk_action_handlers.dart';
-import '../widgets/task_history_panel.dart';
+import '../widgets/completed_tasks_panel.dart';
 
 
 class SimpleTaskAssignScreen extends StatefulWidget {
@@ -46,6 +46,23 @@ class _SimpleTaskAssignScreenState extends State<SimpleTaskAssignScreen> {
     if (widget.currentUser.isAdmin) {
       _performAutomaticCleanup();
     }
+  }
+
+  void _openCompletedTasksWindow() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(title: const Text('Historial de tareas completadas')),
+          body: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: CompletedTasksPanel(userId: null),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _loadData() async {
@@ -178,11 +195,7 @@ class _SimpleTaskAssignScreenState extends State<SimpleTaskAssignScreen> {
                   ],
                 ),
               ),
-              const Divider(),
-              // Historial con scroll
-              Expanded(
-                child: TaskHistoryPanel(task: task),
-              ),
+              // Historial movido a ventana separada (botón en el header)
             ],
           ),
         ),
@@ -203,6 +216,7 @@ class _SimpleTaskAssignScreenState extends State<SimpleTaskAssignScreen> {
               SimpleTaskHeader(
                 onBack: () => Navigator.pop(context),
                 onRefresh: _loadData,
+                onOpenHistory: _openCompletedTasksWindow,
               ),
               Expanded(
                 child: isLoading
@@ -286,12 +300,10 @@ class _SimpleTaskAssignScreenState extends State<SimpleTaskAssignScreen> {
                                         selectedTask: _selectedTask,
                                         onTaskSelected: _handleTaskSelected,
                                       ),
-                                    ),
-                                    if (widget.currentUser.isAdmin)
-                                      TaskHistoryPanel(
-                                        task: _selectedTask,
                                       ),
-                                  ],
+                                  if (widget.currentUser.isAdmin && _selectedTask != null)
+                                    const SizedBox.shrink(),
+                                ],
                                 ),
                               ),
                             ],
