@@ -4,6 +4,7 @@ import '../../models/task_model.dart';
 import '../../services/task_service.dart';
 import '../../theme/app_theme.dart';
 import '../tasks/user_task_stats.dart';
+import '../tasks_screen.dart';
 
 /// Dashboard principal del usuario con estadísticas y vista rápida
 class UserDashboard extends StatefulWidget {
@@ -54,10 +55,7 @@ class _UserDashboardState extends State<UserDashboard> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final upcomingTasks = allTasks
-        .where((t) => !t.isCompleted && !t.isOverdue)
-        .take(5)
-        .toList();
+  // upcomingTasks removed (sección 'Próximas Tareas' eliminada)
     final overdueTasks = allTasks.where((t) => t.isOverdue && !t.isCompleted).toList();
     final adminTasks = allTasks.where((t) => !t.isPersonal && !t.isCompleted).toList();
 
@@ -85,10 +83,7 @@ class _UserDashboardState extends State<UserDashboard> {
             child: _buildAdminTasksSection(adminTasks),
           ),
 
-        // Próximas Tareas
-        SliverToBoxAdapter(
-          child: _buildUpcomingTasksSection(upcomingTasks),
-        ),
+        // Próximas Tareas (eliminada a petición)
 
         // Espaciado final
         const SliverToBoxAdapter(
@@ -226,7 +221,14 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   Widget _buildAdminTasksSection(List<TaskModel> tasks) {
-    return Container(
+    return GestureDetector(
+      onTap: () {
+        // Abrir panel completo de 'Mis Tareas' para mayor ergonomía
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (context) => TasksScreen(user: widget.user),
+        ));
+      },
+      child: Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -276,74 +278,15 @@ class _UserDashboardState extends State<UserDashboard> {
             ],
           ),
           const SizedBox(height: 16),
+          // Mostrar un preview corto aquí, pero el tap abre el panel completo
           ...tasks.take(5).map((task) => _buildTaskItem(task)),
         ],
       ),
+    ),
     );
   }
 
-  Widget _buildUpcomingTasksSection(List<TaskModel> tasks) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [AppColors.shadowMd],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF667eea).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.event_available_rounded,
-                  color: Color(0xFF667eea),
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  '📅 Próximas Tareas',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          if (tasks.isEmpty)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    Icon(Icons.check_circle_outline,
-                        size: 48, color: Colors.grey[300]),
-                    const SizedBox(height: 8),
-                    Text(
-                      '¡Todo al día!',
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else
-            ...tasks.map((task) => _buildTaskItem(task)),
-        ],
-      ),
-    );
-  }
+  // _buildUpcomingTasksSection removed — sección 'Próximas Tareas' eliminada
 
   Widget _buildTaskItem(TaskModel task, {bool isOverdue = false}) {
     final daysUntilDue = task.dueDate.difference(DateTime.now()).inDays;
@@ -355,29 +298,45 @@ class _UserDashboardState extends State<UserDashboard> {
                 ? 'Vencida hace ${-daysUntilDue} día(s)'
                 : 'En $daysUntilDue día(s)';
 
+    // Priorizar indicador de rechazo sobre otros estados
+    final isRejected = task.isRejected;
+    final effectiveColor = isRejected
+        ? const Color(0xFFfc4a1a) // Rojo para rechazadas
+        : isOverdue
+            ? const Color(0xFFfc4a1a)
+            : Colors.grey[200]!;
+    final effectiveBgColor = isRejected
+        ? const Color(0xFFfc4a1a).withOpacity(0.1)
+        : isOverdue
+            ? const Color(0xFFfc4a1a).withOpacity(0.05)
+            : Colors.grey[50];
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isOverdue
-            ? const Color(0xFFfc4a1a).withOpacity(0.05)
-            : Colors.grey[50],
+        color: effectiveBgColor,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: isOverdue ? const Color(0xFFfc4a1a) : Colors.grey[200]!,
+          color: effectiveColor,
+          width: isRejected ? 2 : 1, // Borde más grueso si está rechazada
         ),
       ),
       child: Row(
         children: [
           Icon(
-            task.status == 'in_progress'
-                ? Icons.play_circle_outline
-                : Icons.radio_button_unchecked,
-            color: isOverdue
-                ? const Color(0xFFfc4a1a)
+            isRejected
+                ? Icons.cancel_outlined // Ícono de rechazo
                 : task.status == 'in_progress'
-                    ? const Color(0xFF667eea)
-                    : Colors.grey,
+                    ? Icons.play_circle_outline
+                    : Icons.radio_button_unchecked,
+            color: isRejected
+                ? const Color(0xFFfc4a1a)
+                : isOverdue
+                    ? const Color(0xFFfc4a1a)
+                    : task.status == 'in_progress'
+                        ? const Color(0xFF667eea)
+                        : Colors.grey,
             size: 20,
           ),
           const SizedBox(width: 12),
@@ -385,15 +344,44 @@ class _UserDashboardState extends State<UserDashboard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  task.title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: isOverdue ? const Color(0xFFfc4a1a) : Colors.black87,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        task.title,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: isRejected || isOverdue
+                              ? const Color(0xFFfc4a1a)
+                              : Colors.black87,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    // Badge de rechazo destacado
+                    if (isRejected)
+                      Container(
+                        margin: const EdgeInsets.only(left: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFfc4a1a),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          '¡Rechazada!',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 4),
                 Row(
@@ -405,7 +393,7 @@ class _UserDashboardState extends State<UserDashboard> {
                       dueText,
                       style: TextStyle(
                         fontSize: 12,
-                        color: isOverdue
+                        color: isRejected || isOverdue
                             ? const Color(0xFFfc4a1a)
                             : Colors.grey[600],
                       ),

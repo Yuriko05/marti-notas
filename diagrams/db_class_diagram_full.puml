@@ -1,0 +1,110 @@
+@startuml
+' Diagrama de clases / esquema lógico para Firestore (NoSQL) - marti-notas
+' Generado a partir de los modelos Dart: UserModel, TaskModel, NoteModel, HistoryEvent
+' Este diagrama muestra colecciones principales y cómo se mapean a clases Dart.
+
+skinparam classAttributeIconSize 0
+
+' --- User ---
+class UserModel {
+  +String uid
+  +String email
+  +String name
+  +String role            // 'admin' | 'normal'
+  +String username
+  +bool hasPassword
+  +DateTime createdAt
+  +DateTime? lastLogin
+  +List<String>? fcmTokens
+}
+
+' --- Task ---
+class TaskModel {
+  +String id
+  +String title
+  +String description
+  +DateTime dueDate
+  +String assignedTo      // referencia por UID -> users/{uid}
+  +String createdBy       // referencia por UID -> users/{uid}
+  +bool isPersonal
+  +String status          // pending, in_progress, pending_review, completed, rejected
+  +String priority        // low, medium, high
+  +DateTime createdAt
+  +DateTime? completedAt
+  +DateTime? confirmedAt
+  +String? confirmedBy    // admin UID
+  +bool isRead
+  +DateTime? readAt
+  +String? readBy
+  +String? rejectionReason
+  +List<String> attachmentUrls
+  +List<String> links
+  +String? completionComment
+  +DateTime? submittedAt
+  +String? reviewComment
+  +List<String> initialAttachments
+  +List<String> initialLinks
+  +String? initialInstructions
+}
+
+' --- Completed Task (persistido en collection completed_tasks) ---
+class CompletedTask {
+  +String taskId          // id original de la tarea
+  +String title
+  +String description
+  +DateTime dueDate
+  +String assignedTo
+  +String createdBy
+  +bool isPersonal
+  +String status
+  +String priority
+  +DateTime createdAt
+  +DateTime? completedAt
+  +DateTime? confirmedAt
+  +String? confirmedBy
+  +String? reviewComment
+  +String? completionComment
+}
+
+' --- Task history event (subcollection o colección independiente) ---
+class HistoryEvent {
+  +String id
+  +String action          // e.g. created, assigned, completed, comment_added, verified
+  +String? actorUid
+  +String? actorRole
+  +DateTime? timestamp
+  +Map<String, dynamic> payload
+}
+
+' --- Note (opcional) ---
+class NoteModel {
+  +String id
+  +String title
+  +String content
+  +String createdBy
+  +DateTime createdAt
+  +DateTime? updatedAt
+  +List<String> tags
+}
+
+' Relaciones y correspondencia con Firestore (orientativo)
+' En Firestore no hay FK; se usa UID/ids como referencia.
+UserModel "1" <|-- "*" TaskModel : createdBy / assignedTo
+UserModel "1" <|-- "*" NoteModel : createdBy
+TaskModel "1" o-- "*" HistoryEvent : "task/{id}/history (subcollection)"
+TaskModel "1" <|-- "1" CompletedTask : archived copy
+UserModel "1" <|-- "*" CompletedTask : assignedTo/createdBy
+
+' Colecciones ejemplo:
+' - users/{uid} -> UserModel
+' - tasks/{taskId} -> TaskModel
+' - tasks/{taskId}/history/{eventId} -> HistoryEvent (subcollection)
+' - completed_tasks/{taskId} -> CompletedTask (persisted snapshot)
+' - notes/{noteId} -> NoteModel
+
+' Notas:
+' - Relaciones representadas por campos string (UIDs / ids).
+' - completed_tasks guarda una copia persistente de la tarea al completarse para auditoría y búsquedas históricas.
+' - HistoryEvent.payload puede contener detalles dependientes del action (p.ej. comment text, previousValue, newValue).
+
+@enduml

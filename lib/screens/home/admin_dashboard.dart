@@ -186,50 +186,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
           ),
 
-          // Section Title: User Performance
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
-              child: Row(
-                children: [
-                  Icon(Icons.people, color: AppColors.primary, size: 24),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Rendimiento por Usuario',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // User Performance Grid
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            sliver: SliverGrid(
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: MediaQuery.of(context).size.width > 600 ? 2 : 1,
-                childAspectRatio: 1.5,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  if (index >= _allUsers.length) return null;
-                  final user = _allUsers[index];
-                  final stats = _getUserStats(user.uid);
-                  return _buildUserPerformanceCard(user, stats);
-                },
-                childCount: _allUsers.length,
-              ),
-            ),
-          ),
-
-          // Pending Review Tasks Section (excluir tareas personales)
+          // Tareas en Revisión (moved arriba para visibilidad)
           if (_allTasks.where((t) => t.status == 'pending_review' && !t.isPersonal).isNotEmpty) ...[
             SliverToBoxAdapter(
               child: Padding(
@@ -282,20 +239,47 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
           ],
 
-          // Recent Activity Section
+          // Rendimiento por Usuario (expandible)
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
-              child: Row(
+              child: ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                childrenPadding: const EdgeInsets.only(top: 12, bottom: 8),
+                initiallyExpanded: false,
+                title: Row(
+                  children: [
+                    Icon(Icons.people, color: AppColors.primary, size: 24),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Rendimiento por Usuario',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
                 children: [
-                  Icon(Icons.history, color: AppColors.primary, size: 24),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Actividad Reciente',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 0),
+                    child: GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      padding: const EdgeInsets.only(top: 8),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: MediaQuery.of(context).size.width > 600 ? 2 : 1,
+                        childAspectRatio: 1.5,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                      ),
+                      itemCount: _allUsers.length,
+                      itemBuilder: (context, index) {
+                        final user = _allUsers[index];
+                        final stats = _getUserStats(user.uid);
+                        return _buildUserPerformanceCard(user, stats);
+                      },
                     ),
                   ),
                 ],
@@ -303,17 +287,52 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
           ),
 
-          // Recent Tasks List
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  if (index >= _allTasks.length) return null;
-                  final task = _allTasks[index];
-                  return _buildRecentTaskItem(task);
-                },
-                childCount: _allTasks.length > 10 ? 10 : _allTasks.length,
+          
+
+          // Actividad Reciente (expandible)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+              child: ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                childrenPadding: const EdgeInsets.only(top: 12, bottom: 8),
+                initiallyExpanded: false,
+                title: Row(
+                  children: [
+                    Icon(Icons.history, color: AppColors.primary, size: 24),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Actividad Reciente',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 0),
+                    child: Column(
+                      children: [
+                        for (int i = 0; i < (_allTasks.length > 10 ? 10 : _allTasks.length); i++)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _buildRecentTaskItem(_allTasks[i]),
+                          ),
+                        if (_allTasks.length == 0)
+                          Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Text(
+                              'No hay actividad reciente',
+                              style: TextStyle(color: AppColors.textSecondary),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -544,76 +563,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
           ],
         ),
-        if (stats['pendingReview']! > 0) ...[
-          const SizedBox(height: 12),
-          _buildPendingReviewBanner(stats['pendingReview']!),
-        ],
+        // Removed the prominent pending-review banner to reduce header space.
       ],
-    );
-  }
-
-  Widget _buildPendingReviewBanner(int count) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-        ),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF667eea).withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.rate_review,
-              color: Colors.white,
-              size: 32,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$count Tarea${count > 1 ? 's' : ''} en Revisión',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Usuarios esperando tu aprobación',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Icon(
-            Icons.arrow_forward_ios,
-            color: Colors.white,
-            size: 20,
-          ),
-        ],
-      ),
     );
   }
 

@@ -294,10 +294,11 @@ class _AdminTasksByUserScreenState extends State<AdminTasksByUserScreen> {
 
     return InkWell(
       onTap: () {
-        showDialog(
-          context: context,
-          builder: (context) => TaskPreviewDialog(task: task),
-        );
+        // No permitir abrir la tarea desde la vista admin (solo el asignado puede abrirla)
+        final currentUserId = widget.currentUser?.uid;
+        if (currentUserId != null && task.assignedTo == currentUserId) {
+          TaskPreviewDialog.open(context, task, showActions: true);
+        }
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),

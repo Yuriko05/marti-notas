@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/task_model.dart';
 import '../models/user_model.dart';
-import 'task_preview_dialog.dart';
+// !! CAMBIO: Ya no necesitamos importar la vista previa del usuario
+// import 'task_preview_dialog.dart'; 
 
 /// Tarjeta reutilizable para mostrar una tarea.
 class TaskCard extends StatelessWidget {
@@ -32,11 +34,12 @@ class TaskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 420;
     final statusInfo = _getStatusInfo(task.status);
     final isOverdue = task.isOverdue;
 
     return InkWell(
-      onTap: onTap,
+      onTap: onTap, // El onTap general se pasa desde la pantalla de admin
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
@@ -50,8 +53,8 @@ class TaskCard extends StatelessWidget {
           boxShadow: [
             BoxShadow(
               color: isOverdue
-                  ? const Color(0xFFfc4a1a).withValues(alpha: 0.12)
-                  : Colors.black.withValues(alpha: 0.05),
+                  ? const Color(0xFFfc4a1a).withOpacity(0.12)
+                  : Colors.black.withOpacity(0.05),
               blurRadius: isOverdue ? 8 : 4,
               offset: const Offset(0, 2),
             ),
@@ -90,7 +93,7 @@ class TaskCard extends StatelessWidget {
                         Text(
                           task.title,
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: isMobile ? 14 : 16,
                             fontWeight: FontWeight.bold,
                             color: isOverdue ? const Color(0xFFfc4a1a) : const Color(0xFF2D3748),
                           ),
@@ -101,7 +104,7 @@ class TaskCard extends StatelessWidget {
                         Text(
                           statusInfo['text'] as String,
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: isMobile ? 11 : 12,
                             color: statusInfo['color'] as Color,
                             fontWeight: FontWeight.w600,
                           ),
@@ -112,26 +115,31 @@ class TaskCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   _buildPriorityBadge(task),
                   const SizedBox(width: 4),
-                  // Badge de nuevo comentario del admin
-                  if ((task.status == 'completed' || task.status == 'confirmed' || task.status == 'rejected') && 
-                      task.reviewComment != null && 
-                      task.reviewComment!.isNotEmpty) ...[
-                    _buildNewCommentBadge(task),
-                    const SizedBox(width: 4),
+                  if (!isMobile) ...[
+                    if ((task.status == 'completed' || task.status == 'pending_review' || task.status == 'confirmed' || task.status == 'rejected') && 
+                        task.reviewComment != null && 
+                        task.reviewComment!.isNotEmpty) ...[
+                      _buildNewCommentBadge(task),
+                      const SizedBox(width: 4),
+                    ],
+                    _buildReadStatusBadge(task),
                   ],
-                  _buildReadStatusBadge(task),
+                  if (isMobile) ...[
+                    const SizedBox.shrink(),
+                  ],
                   IconButton(
                     tooltip: 'Ver detalle',
                     icon: const Icon(Icons.visibility_outlined, size: 18),
+                    // !! CAMBIO: Se eliminó el 'else' que abría el TaskPreviewDialog
                     onPressed: () {
                       if (onPreview != null) {
+                        // Esto es lo correcto: la pantalla de admin
+                        // debe pasar una función 'onPreview' que
+                        // abra el DIÁLOGO DE ADMIN.
                         onPreview!(task);
-                      } else {
-                        showDialog(
-                          context: context,
-                          builder: (context) => TaskPreviewDialog(task: task),
-                        );
                       }
+                      // No hacer nada si onPreview es nulo.
+                      // El admin NUNCA debe abrir el diálogo del usuario.
                     },
                   ),
                   if (isOverdue)
@@ -183,15 +191,15 @@ class TaskCard extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 task.description,
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade700, height: 1.4),
-                maxLines: 2,
+                style: TextStyle(fontSize: isMobile ? 13 : 14, color: Colors.grey.shade700, height: 1.4),
+                maxLines: isMobile ? 3 : 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              // Mostrar comentario de revisión si existe y la tarea está completada/confirmada/rechazada
-              if ((task.status == 'completed' || task.status == 'confirmed' || task.status == 'rejected') && 
+              if ((task.status == 'completed' || task.status == 'pending_review' || task.status == 'confirmed' || task.status == 'rejected') && 
                   task.reviewComment != null && 
                   task.reviewComment!.isNotEmpty)
                 _buildReviewCommentSection(task),
+
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(12),
@@ -199,44 +207,93 @@ class TaskCard extends StatelessWidget {
                   color: Colors.grey.shade50,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF667eea).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Icon(Icons.person, size: 16, color: Color(0xFF667eea)),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
+                child: isMobile
+                    ? Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Asignado a', style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
-                          Text(user?.name ?? task.assignedTo, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF2D3748))),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF667eea).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Icon(Icons.person, size: 16, color: Color(0xFF667eea)),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Asignado a', style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+                                    Text(user?.name ?? task.assignedTo, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF2D3748))),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: isOverdue ? const Color(0xFFfc4a1a).withOpacity(0.1) : const Color(0xFF667eea).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Icon(Icons.calendar_today, size: 16, color: isOverdue ? const Color(0xFFfc4a1a) : const Color(0xFF667eea)),
+                              ),
+                              const SizedBox(width: 8),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Vencimiento', style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+                                  Text(_formatDate(task.dueDate), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isOverdue ? const Color(0xFFfc4a1a) : const Color(0xFF2D3748))),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF667eea).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Icon(Icons.person, size: 16, color: Color(0xFF667eea)),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Asignado a', style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+                                Text(user?.name ?? task.assignedTo, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF2D3748))),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: isOverdue ? const Color(0xFFfc4a1a).withOpacity(0.1) : const Color(0xFF667eea).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Icon(Icons.calendar_today, size: 16, color: isOverdue ? const Color(0xFFfc4a1a) : const Color(0xFF667eea)),
+                          ),
+                          const SizedBox(width: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Vencimiento', style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+                              Text(_formatDate(task.dueDate), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isOverdue ? const Color(0xFFfc4a1a) : const Color(0xFF2D3748))),
+                            ],
+                          ),
                         ],
                       ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: isOverdue ? const Color(0xFFfc4a1a).withValues(alpha: 0.1) : const Color(0xFF667eea).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Icon(Icons.calendar_today, size: 16, color: isOverdue ? const Color(0xFFfc4a1a) : const Color(0xFF667eea)),
-                    ),
-                    const SizedBox(width: 8),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Vencimiento', style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
-                        Text(_formatDate(task.dueDate), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isOverdue ? const Color(0xFFfc4a1a) : const Color(0xFF2D3748))),
-                      ],
-                    ),
-                  ],
-                ),
               ),
             ],
           ),
@@ -262,9 +319,10 @@ class TaskCard extends StatelessWidget {
           'gradient': const LinearGradient(colors: [Color(0xFF4facfe), Color(0xFF00f2fe)]),
         };
       case 'completed':
+      case 'pending_review': // El admin ve "pending_review" como "Completada"
         return {
           'color': const Color(0xFF43e97b),
-          'text': 'Completada',
+          'text': 'En Revisión', // (En espera de revisión)
           'icon': Icons.check_circle,
           'gradient': const LinearGradient(colors: [Color(0xFF43e97b), Color(0xFF38f9d7)]),
         };
@@ -296,7 +354,7 @@ class TaskCard extends StatelessWidget {
     if (task.isRead) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(color: const Color(0xFF34B7F1).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+        decoration: BoxDecoration(color: const Color(0xFF34B7F1).withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -309,7 +367,7 @@ class TaskCard extends StatelessWidget {
     } else {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+        decoration: BoxDecoration(color: Colors.grey.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -323,14 +381,15 @@ class TaskCard extends StatelessWidget {
   }
 
   Widget _buildNewCommentBadge(TaskModel task) {
+    // Esta es la lógica original del admin
     final isRejected = task.status == 'rejected';
     final color = isRejected ? const Color(0xFFfc4a1a) : const Color(0xFF667eea);
-    final text = isRejected ? '¡Admin rechazó!' : '💬 Comentario';
+    final text = isRejected ? '¡Tarea Rechazada!' : '💬 Comentario'; // Texto claro para el admin
     
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
+        color: color.withOpacity(0.15),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: color,
@@ -390,10 +449,10 @@ class TaskCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: (priorityInfo['color'] as Color).withValues(alpha: 0.1),
+        color: (priorityInfo['color'] as Color).withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: (priorityInfo['color'] as Color).withValues(alpha: 0.3),
+          color: (priorityInfo['color'] as Color).withOpacity(0.3),
           width: 1,
         ),
       ),
@@ -422,23 +481,30 @@ class TaskCard extends StatelessWidget {
   Widget _buildTaskStatusBadge(TaskModel task) {
     String badgeText = '';
     Color badgeColor = Colors.grey;
-
-    if (task.isCompleted && !task.isConfirmed && !task.isRejected) {
+    
+    // El admin sí necesita ver todos estos estados
+    if (task.status == 'pending_review') { // 'pending_review'
       badgeText = 'Esperando Confirmación';
       badgeColor = const Color(0xFFf093fb);
-    } else if (task.isConfirmed) {
-      badgeText = 'Confirmada por Admin';
+    } else if (task.status == 'confirmed') {
+      badgeText = 'Confirmada';
       badgeColor = const Color(0xFF667eea);
-    } else if (task.isRejected) {
+    } else if (task.status == 'rejected') {
       badgeText = 'Rechazada';
       badgeColor = const Color(0xFFfc4a1a);
+    } else if (task.status == 'completed') {
+        // 'completed' para el admin significa que el *usuario* la marcó
+        // (es lo mismo que 'pending_review' en tu flujo)
+       badgeText = 'Esperando Confirmación';
+       badgeColor = const Color(0xFFf093fb);
     }
+
 
     if (badgeText.isEmpty) return const SizedBox.shrink();
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(color: badgeColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: badgeColor.withValues(alpha: 0.3))),
+      decoration: BoxDecoration(color: badgeColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: badgeColor.withOpacity(0.3))),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -451,7 +517,6 @@ class TaskCard extends StatelessWidget {
   }
 
   Widget _buildReviewCommentSection(TaskModel task) {
-    // Determinar si es un rechazo para cambiar color y estilo
     final isRejected = task.status == 'rejected';
     final color = isRejected ? const Color(0xFFfc4a1a) : const Color(0xFF667eea);
     final icon = isRejected ? Icons.cancel : Icons.rate_review;
@@ -461,10 +526,10 @@ class TaskCard extends StatelessWidget {
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: color.withValues(alpha: 0.3),
+          color: color.withOpacity(0.3),
           width: 1,
         ),
       ),
@@ -474,7 +539,7 @@ class TaskCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.2),
+              color: color.withOpacity(0.2),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Icon(

@@ -51,6 +51,7 @@ class SimpleTaskList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final filtered = filteredTasks;
+    // Nota: no necesitamos el objeto completo del usuario aquí; sólo usamos currentUserId
 
     if (filtered.isEmpty) {
       return _buildEmptyState();
@@ -88,32 +89,20 @@ class SimpleTaskList extends StatelessWidget {
             onTap: () {
               // Seleccionar tarea para ver historial
               onTaskSelected?.call(task);
-              
-              if (task.assignedTo == currentUserId) {
-                showDialog(
-                  context: context,
-                  builder: (context) => TaskPreviewDialog(task: task),
-                );
-                return;
-              }
 
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Solo el usuario asignado puede abrir la tarea')),
-              );
+              // Permitir ver la vista previa si el usuario es el asignado o es admin.
+              // Si no es el asignado, se abrirá en modo sólo lectura (sin botones de acción).
+              // Sólo permitir abrir la vista si el usuario actual es el asignado.
+              if (task.assignedTo == currentUserId) {
+                TaskPreviewDialog.open(context, task, showActions: true);
+              }
             },
             onEdit: (t) => onEdit(t),
             onDelete: (t) => onDelete(t),
             onPreview: (t) {
-              // Same restriction: only assigned user can open preview
+              // Sólo permitir abrir la vista si el usuario actual es el asignado.
               if (task.assignedTo == currentUserId) {
-                showDialog(
-                  context: context,
-                  builder: (context) => TaskPreviewDialog(task: task),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Solo el usuario asignado puede abrir la tarea')),
-                );
+                TaskPreviewDialog.open(context, task, showActions: true);
               }
             },
           );

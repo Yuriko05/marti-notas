@@ -15,6 +15,8 @@ import 'simple_task_assign/simple_task_list.dart';
 import 'simple_task_assign/task_dialogs.dart';
 import 'simple_task_assign/bulk_action_handlers.dart';
 import '../widgets/completed_tasks_panel.dart';
+import '../widgets/task_preview_dialog.dart';
+import '../widgets/task_card.dart';
 
 
 class SimpleTaskAssignScreen extends StatefulWidget {
@@ -123,85 +125,26 @@ class _SimpleTaskAssignScreenState extends State<SimpleTaskAssignScreen> {
 
   /// Callback para seleccionar una tarea y ver su historial
   void _handleTaskSelected(TaskModel task) {
+    // El admin NO debe abrir ningún diálogo ni panel lateral al hacer clic en tareas
+    // Solo los usuarios asignados pueden ver el preview de sus tareas
+    if (widget.currentUser.uid != task.assignedTo) {
+      // Si el usuario actual NO es el asignado (es el admin), no hacer nada
+      return;
+    }
+    
     setState(() => _selectedTask = task);
     
     // En móviles, mostrar historial como modal
-    if (MediaQuery.of(context).size.width < 600 && widget.currentUser.isAdmin) {
-      _showHistoryModal(task);
+    // Sólo permitir abrir el diálogo en móvil si el usuario actual es el asignado
+    if (MediaQuery.of(context).size.width < 600) {
+      showDialog(
+        context: context,
+        builder: (context) => TaskPreviewDialog(task: task, showActions: true),
+      );
     }
   }
 
-  /// Muestra el historial en un bottom sheet modal
-  void _showHistoryModal(TaskModel task) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        minChildSize: 0.4,
-        maxChildSize: 0.9,
-        builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              // Handle para arrastrar
-              Container(
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              // Título y botón cerrar
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Historial de Tarea',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            task.title,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[600],
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-              ),
-              // Historial movido a ventana separada (botón en el header)
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  // NOTE: mobile detail view now opens TaskPreviewDialog directly.
 
   @override
   Widget build(BuildContext context) {
@@ -248,9 +191,101 @@ class _SimpleTaskAssignScreenState extends State<SimpleTaskAssignScreen> {
                                     },
                                   ),
                                 ),
-                                // Lista de tareas
-                                SliverFillRemaining(
-                                  child: SimpleTaskList(
+                                // Lista de tareas como SliverList para compartir el mismo scroll
+                                Builder(builder: (context) {
+                                  final filtered = assignedTasks.where((task) {
+                                    final matchesSearch = searchQuery.isEmpty ||
+                                        task.title.toLowerCase().contains(searchQuery.toLowerCase()) ||
+                                        task.description.toLowerCase().contains(searchQuery.toLowerCase());
+                                    final matchesStatus = statusFilter == 'all' ||
+                                        (statusFilter == 'pending' && task.isPending) ||
+                                        (statusFilter == 'completed' && task.isCompleted) ||
+                                        (statusFilter == 'overdue' && task.isOverdue);
+                                    return matchesSearch && matchesStatus;
+                                  }).toList();
+
+                                  return SliverList(
+                                    delegate: SliverChildBuilderDelegate(
+                                      (context, index) {
+                                        if (index >= filtered.length) return null;
+                                        final task = filtered[index];
+                                        final user = users.firstWhere(
+                                          (u) => u.uid == task.assignedTo,
+                                          orElse: () => UserModel(
+                                            uid: task.assignedTo,
+                                            email: 'usuario.eliminado@example.com',
+                                            name: 'Usuario eliminado',
+                                            role: 'normal',
+                                            username: 'usuarioeliminado',
+                                            hasPassword: false,
+                                            createdAt: DateTime.now(),
+                                          ),
+                                        );
+
+                                        final isChecked = _selectedTaskIds.contains(task.id);
+                                        final isSelected = _selectedTask?.id == task.id;
+
+                                        return Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                                          child: TaskCard(
+                                            task: task,
+                                            user: user,
+                                            isChecked: isChecked,
+                                            isSelected: isSelected,
+                                            onToggleSelect: (id) => _handleTaskToggleSelection(id),
+                                            showActions: true,
+                                            onTap: () {
+                                              // seleccionar y delegar comportamiento (abrir sólo si corresponde)
+                                              _handleTaskSelected(task);
+                                            },
+                                            onEdit: (t) => _showEditTaskDialog(t),
+                                            onDelete: (t) => _showDeleteTaskDialog(t),
+                                            onPreview: (t) {
+                                              _handleTaskSelected(task);
+                                            },
+                                          ),
+                                        );
+                                      },
+                                      childCount: filtered.length,
+                                    ),
+                                  );
+                                }),
+                              ],
+                            );
+                          }
+
+                          // Desktop/Tablet: hacer que stats + search scrolleen junto con la lista
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Columna izquierda: header (stats + search) y lista que comparten scroll
+                              Expanded(
+                                flex: 3,
+                                child: NestedScrollView(
+                                  headerSliverBuilder: (context, innerBoxIsScrolled) => [
+                                    SliverToBoxAdapter(
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(bottom: 8.0),
+                                        child: SimpleTaskStats(tasks: assignedTasks),
+                                      ),
+                                    ),
+                                    SliverToBoxAdapter(
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(bottom: 8.0),
+                                        child: SimpleTaskSearchBar(
+                                          searchQuery: searchQuery,
+                                          statusFilter: statusFilter,
+                                          onSearchChanged: (value) {
+                                            setState(() => searchQuery = value);
+                                          },
+                                          onFilterChanged: (value) {
+                                            setState(() => statusFilter = value!);
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                  body: SimpleTaskList(
                                     tasks: assignedTasks,
                                     users: users,
                                     searchQuery: searchQuery,
@@ -264,48 +299,25 @@ class _SimpleTaskAssignScreenState extends State<SimpleTaskAssignScreen> {
                                     onTaskSelected: _handleTaskSelected,
                                   ),
                                 ),
-                              ],
-                            );
-                          }
-
-                          // Desktop/Tablet: Layout con stats y search fijos, lista scrollable
-                          return Column(
-                            children: [
-                              SimpleTaskStats(tasks: assignedTasks),
-                              SimpleTaskSearchBar(
-                                searchQuery: searchQuery,
-                                statusFilter: statusFilter,
-                                onSearchChanged: (value) {
-                                  setState(() => searchQuery = value);
-                                },
-                                onFilterChanged: (value) {
-                                  setState(() => statusFilter = value!);
-                                },
                               ),
-                              Expanded(
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    Expanded(
-                                      child: SimpleTaskList(
-                                        tasks: assignedTasks,
-                                        users: users,
-                                        searchQuery: searchQuery,
-                                        statusFilter: statusFilter,
-                                        onEdit: _showEditTaskDialog,
-                                        onDelete: _showDeleteTaskDialog,
-                                        currentUserId: widget.currentUser.uid,
-                                        selectedTaskIds: _selectedTaskIds,
-                                        onTaskToggleSelection: _handleTaskToggleSelection,
-                                        selectedTask: _selectedTask,
-                                        onTaskSelected: _handleTaskSelected,
-                                      ),
-                                      ),
-                                  if (widget.currentUser.isAdmin && _selectedTask != null)
-                                    const SizedBox.shrink(),
-                                ],
-                                ),
-                              ),
+                              // Columna derecha: espacio para panel seleccionado (si aplica)
+                              if (widget.currentUser.isAdmin && _selectedTask != null)
+                                Expanded(
+                                  flex: 2,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12.0),
+                                    child: Column(
+                                      children: [
+                                        // Reusar TaskPreviewDialog como panel o cualquier panel detallado que prefieras
+                                        Expanded(
+                                          child: TaskPreviewDialog(task: _selectedTask!),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                )
+                              else
+                                const SizedBox.shrink(),
                             ],
                           );
                         },

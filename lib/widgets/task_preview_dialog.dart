@@ -7,11 +7,35 @@ import 'task_completion_dialog.dart';
 
 class TaskPreviewDialog extends StatefulWidget {
   final TaskModel task;
+  final bool showActions;
 
   const TaskPreviewDialog({
     super.key,
     required this.task,
+    this.showActions = true,
   });
+
+  /// Helper para abrir la vista previa. En móviles presenta una pantalla completa,
+  /// en pantallas grandes presenta un diálogo modal centrado.
+  static Future<void> open(BuildContext context, TaskModel task,
+      {bool showActions = true}) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    if (isMobile) {
+      return Navigator.of(context).push(MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(title: Text(task.title)),
+          body: SafeArea(
+              child: TaskPreviewDialog(task: task, showActions: showActions)),
+        ),
+      ));
+    }
+
+    return showDialog(
+      context: context,
+      builder: (context) =>
+          TaskPreviewDialog(task: task, showActions: showActions),
+    );
+  }
 
   @override
   State<TaskPreviewDialog> createState() => _TaskPreviewDialogState();
@@ -34,8 +58,6 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
       // Solo marcar como leída si el usuario actual es el asignado
       if (currentUser.uid == widget.task.assignedTo) {
         await TaskService.markTaskAsRead(widget.task.id);
-        // No es necesario setState para actualizar la lista desde aquí,
-        // el stream/lista que carga las tareas se refrescará desde el servicio.
       }
     } catch (e) {
       // Ignorar errores menores al marcar como leído
@@ -43,18 +65,20 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
   }
 
   Future<void> _handleStartTask() async {
+    final messenger = ScaffoldMessenger.of(context);
+
     setState(() => _isLoading = true);
     try {
       await TaskService.startTask(widget.task.id);
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           const SnackBar(content: Text('Tarea iniciada')),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(content: Text('Error: $e')),
         );
       }
@@ -66,12 +90,14 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
   Future<void> _handleCompleteTask() async {
     // Si es tarea personal, completar directamente sin evidencias
     if (widget.task.isPersonal) {
+      final messenger = ScaffoldMessenger.of(context);
+
       setState(() => _isLoading = true);
       try {
         await TaskService.completeTask(widget.task.id);
         if (mounted) {
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
+          messenger.showSnackBar(
             const SnackBar(
               content: Text('✅ Tarea personal completada'),
               backgroundColor: Colors.green,
@@ -80,7 +106,7 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          messenger.showSnackBar(
             SnackBar(content: Text('Error: $e')),
           );
         }
@@ -90,11 +116,13 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
       return;
     }
 
-    // Si NO es personal, abrir diálogo de evidencias para revisión del admin
+    // Si NO es personal, abrir diálogo de evidencias
+    final messenger = ScaffoldMessenger.of(context);
+
     final result = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => TaskCompletionDialog(
+      builder: (dialogContext) => TaskCompletionDialog(
         taskId: widget.task.id,
         onSubmit: (comment, links, attachments) async {
           setState(() => _isLoading = true);
@@ -105,18 +133,17 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
               links: links,
               attachments: attachments,
             );
-            if (mounted) {
-              Navigator.of(context).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('✅ Tarea enviada para revisión del administrador'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            }
+            Navigator.of(dialogContext)
+                .pop(true); // Retorna true para cerrar el preview también
+            messenger.showSnackBar(
+              const SnackBar(
+                content: Text('✅ Tarea enviada para revisión del administrador'),
+                backgroundColor: Colors.green,
+              ),
+            );
           } catch (e) {
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
+              messenger.showSnackBar(
                 SnackBar(content: Text('Error: $e')),
               );
             }
@@ -127,24 +154,27 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
       ),
     );
 
+    // Cerrar TaskPreviewDialog también después de enviar
     if (result == true && mounted) {
       Navigator.of(context).pop();
     }
   }
 
   Future<void> _handleCancelTask() async {
+    final messenger = ScaffoldMessenger.of(context);
+
     setState(() => _isLoading = true);
     try {
       await TaskService.revertTaskStatus(widget.task.id);
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           const SnackBar(content: Text('Estado revertido')),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(content: Text('Error: $e')),
         );
       }
@@ -155,9 +185,18 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isPending = widget.task.status == 'pending';
-    final isInProgress = widget.task.status == 'in_progress';
-    final isRejected = widget.task.status == 'rejected';
+    // !! CAMBIO: Lógica de estado actualizada
+    final bool isPending = widget.task.status == 'pending';
+    final bool isPendingReview = widget.task.status == 'pending_review';
+
+    // "Rechazada" es 'in_progress' CON un comentario
+    final bool isRejected = (widget.task.status == 'in_progress' &&
+        widget.task.reviewComment != null &&
+        widget.task.reviewComment!.isNotEmpty);
+
+    // "En Progreso" es 'in_progress' SIN un comentario
+    final bool isInProgress =
+        (widget.task.status == 'in_progress' && !isRejected);
 
     return Dialog(
       shape: RoundedRectangleBorder(
@@ -195,7 +234,9 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
               const Divider(height: 24),
 
               // Comentario del Admin (si existe) - DESTACADO AL INICIO
-              if (widget.task.reviewComment != null && widget.task.reviewComment!.isNotEmpty)
+              // !! CAMBIO: Esta función ahora maneja todos los casos
+              if (widget.task.reviewComment != null &&
+                  widget.task.reviewComment!.isNotEmpty)
                 _buildAdminCommentAlert(),
 
               // Prioridad
@@ -215,7 +256,7 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
                       const SizedBox(height: 16),
 
                       // Instrucciones iniciales del admin
-                      if (widget.task.initialInstructions != null && 
+                      if (widget.task.initialInstructions != null &&
                           widget.task.initialInstructions!.isNotEmpty)
                         _buildInstructionsSection(),
 
@@ -233,62 +274,8 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
 
               const SizedBox(height: 24),
 
-              // Mostrar motivo de rechazo si la tarea fue rechazada
-              if (isRejected && widget.task.reviewComment != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFfc4a1a).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: const Color(0xFFfc4a1a).withValues(alpha: 0.3),
-                      width: 2,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.cancel,
-                            color: const Color(0xFFfc4a1a),
-                            size: 24,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Tarea Rechazada',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: const Color(0xFFfc4a1a),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Motivo:',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey.shade700,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        widget.task.reviewComment!,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade800,
-                          height: 1.4,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
+              // !! CAMBIO: Se eliminó el bloque 'if (isRejected ...)' de aquí
+              // porque _buildAdminCommentAlert() ya lo maneja.
 
               // Botones de acción
               if (_isLoading)
@@ -298,14 +285,14 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
                     child: CircularProgressIndicator(),
                   ),
                 )
-              else
+              else if (widget.showActions)
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   alignment: WrapAlignment.end,
                   children: [
-                    // Botón Cancelar (revertir estado) - ocultar si la tarea ya está completada
-                    if (widget.task.status != 'completed')
+                    // Botón Cancelar (revertir estado)
+                    if (isInProgress || isRejected) // Se puede cancelar si está en progreso o rechazada
                       TextButton.icon(
                         onPressed: _handleCancelTask,
                         icon: const Icon(Icons.undo, size: 18),
@@ -334,8 +321,8 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
                         ),
                       ),
 
-                    // Botón Completado (solo si está en progreso)
-                    if (isInProgress)
+                    // Botón Completado (solo si está en progreso normal)
+                    if (isInProgress) // !! CAMBIO: Ya no se muestra si está rechazada
                       ElevatedButton.icon(
                         onPressed: _handleCompleteTask,
                         icon: const Icon(Icons.check_circle, size: 18),
@@ -351,7 +338,7 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
                       ),
 
                     // Botón Corregir y Re-enviar (solo si fue rechazada)
-                    if (isRejected)
+                    if (isRejected) // !! CAMBIO: Usa la nueva variable
                       ElevatedButton.icon(
                         onPressed: _handleCompleteTask,
                         icon: const Icon(Icons.refresh, size: 18),
@@ -366,7 +353,9 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
                         ),
                       ),
                   ],
-                ),
+                )
+              else
+                const SizedBox.shrink(),
             ],
           ),
         ),
@@ -376,7 +365,7 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
 
   Widget _buildPrioritySection() {
     Map<String, dynamic> priorityInfo;
-    
+
     switch (widget.task.priority) {
       case 'high':
         priorityInfo = {
@@ -405,10 +394,10 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: (priorityInfo['color'] as Color).withValues(alpha: 0.1),
+        color: (priorityInfo['color'] as Color).withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: (priorityInfo['color'] as Color).withValues(alpha: 0.3),
+          color: (priorityInfo['color'] as Color).withOpacity(0.3),
         ),
       ),
       child: Row(
@@ -486,7 +475,8 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
         children: [
           Row(
             children: [
-              Icon(Icons.attach_file, size: 18, color: Colors.purple.shade700),
+              Icon(Icons.attach_file,
+                  size: 18, color: Colors.purple.shade700),
               const SizedBox(width: 8),
               Text(
                 'Archivos del Admin',
@@ -507,11 +497,12 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
               final isImage = fileName.toLowerCase().endsWith('.jpg') ||
                   fileName.toLowerCase().endsWith('.jpeg') ||
                   fileName.toLowerCase().endsWith('.png');
-              
+
               return InkWell(
                 onTap: () => _openUrl(url),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
@@ -609,7 +600,8 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      Icon(Icons.open_in_new, size: 14, color: Colors.teal.shade500),
+                      Icon(Icons.open_in_new,
+                          size: 14, color: Colors.teal.shade500),
                     ],
                   ),
                 ),
@@ -642,20 +634,44 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
     }
   }
 
+  // !! CAMBIO: Esta función fue reemplazada por completo
   Widget _buildAdminCommentAlert() {
-    final isRejected = widget.task.status == 'rejected';
-    final color = isRejected ? const Color(0xFFfc4a1a) : const Color(0xFF667eea);
-    final title = isRejected ? '❌ Tarea Rechazada por el Admin' : '✅ Comentario del Admin';
-    final icon = isRejected ? Icons.cancel : Icons.check_circle;
-    
+    // NUEVA LÓGICA:
+    // Detectar si la tarea está rechazada (en progreso + comentario)
+    final isRejected = (widget.task.status == 'in_progress' &&
+        widget.task.reviewComment != null &&
+        widget.task.reviewComment!.isNotEmpty);
+
+    // Detectar si es un comentario de aprobación (completada, confirmada o en revisión)
+    final isApproved = (widget.task.status == 'completed' ||
+        widget.task.status == 'confirmed' ||
+        widget.task.status == 'pending_review');
+
+    final Color color;
+    final String title;
+    final IconData icon;
+
+    if (isRejected) {
+      color = const Color(0xFFfc4a1a);
+      title = '❌ Tarea Rechazada por el Admin';
+      icon = Icons.cancel;
+    } else if (isApproved) {
+      color = const Color(0xFF667eea);
+      title = '✅ Comentario del Admin';
+      icon = Icons.check_circle;
+    } else {
+      // Si no es ninguno (ej. una tarea en progreso sin comentario), no mostrar nada
+      return const SizedBox.shrink();
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            color.withValues(alpha: 0.15),
-            color.withValues(alpha: 0.05),
+            color.withOpacity(0.15),
+            color.withOpacity(0.05),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -667,7 +683,7 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
         ),
         boxShadow: [
           BoxShadow(
-            color: color.withValues(alpha: 0.2),
+            color: color.withOpacity(0.2),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -681,7 +697,7 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.2),
+                  color: color.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -710,7 +726,7 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: color.withValues(alpha: 0.3),
+                color: color.withOpacity(0.3),
               ),
             ),
             child: Row(
@@ -718,7 +734,7 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
               children: [
                 Icon(
                   Icons.format_quote,
-                  color: color.withValues(alpha: 0.5),
+                  color: color.withOpacity(0.5),
                   size: 20,
                 ),
                 const SizedBox(width: 8),
@@ -741,7 +757,7 @@ class _TaskPreviewDialogState extends State<TaskPreviewDialog> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFFf7b733).withValues(alpha: 0.1),
+                color: const Color(0xFFf7b733).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: const Color(0xFFf7b733),
