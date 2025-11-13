@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
 import '../models/task_model.dart';
-import '../services/auth_service.dart';
+import 'auth/session_manager.dart';
 import 'history_service.dart';
 import 'cloud_functions_service.dart';
 
@@ -16,13 +16,13 @@ class AdminService {
   }) async {
     try {
       // Verificar que el usuario actual es admin
-      final currentUser = AuthService.currentUser;
+      final currentUser = SessionManager().currentUser;
       if (currentUser == null) {
         throw Exception('No hay usuario autenticado');
       }
 
-      // Verificar si el usuario actual es admin usando AuthService
-      final isAdmin = await AuthService.isCurrentUserAdmin();
+      // Verificar si el usuario actual es admin usando SessionManager
+      final isAdmin = await SessionManager().isCurrentUserAdmin();
       if (!isAdmin) {
         throw Exception('No tienes permisos de administrador');
       }
@@ -62,19 +62,19 @@ class AdminService {
     required String role,
   }) async {
     try {
-      final currentUser = AuthService.currentUser;
+      final currentUser = SessionManager().currentUser;
       if (currentUser == null) {
         throw Exception('No hay usuario autenticado');
       }
 
-      final isAdmin = await AuthService.isCurrentUserAdmin();
+      final isAdmin = await SessionManager().isCurrentUserAdmin();
       if (!isAdmin) {
         throw Exception('No tienes permisos de administrador');
       }
 
       print('👤 Admin creando usuario (método legacy): $name ($role)');
 
-      return await AuthService.registerWithNameAndPassword(
+      return await SessionManager().registerWithNameAndPassword(
         name: name,
         password: password,
         role: role,
@@ -88,7 +88,7 @@ class AdminService {
   /// Obtener todos los usuarios (solo para administradores)
   static Future<List<UserModel>> getAllUsers() async {
     try {
-      final currentUser = AuthService.currentUser;
+      final currentUser = SessionManager().currentUser;
       if (currentUser == null) {
         throw Exception('No hay usuario autenticado');
       }
@@ -121,7 +121,7 @@ class AdminService {
     required String role,
   }) async {
     try {
-      final currentUser = AuthService.currentUser;
+      final currentUser = SessionManager().currentUser;
       if (currentUser == null) return false;
 
       final currentUserDoc =
@@ -149,7 +149,7 @@ class AdminService {
     try {
       print('🗑️ Iniciando eliminación de usuario: $userId');
 
-      final currentUser = AuthService.currentUser;
+      final currentUser = SessionManager().currentUser;
       if (currentUser == null) {
         print('❌ Error: No hay usuario autenticado');
         return false;
@@ -190,14 +190,12 @@ class AdminService {
       }
 
       final userToDeleteData = userToDeleteDoc.data() as Map<String, dynamic>;
-      final String userEmail = userToDeleteData['email'] ?? '';
 
       print('✅ Usuario a eliminar encontrado: ${userToDeleteData}');
 
-      // Usar AuthService para eliminar el usuario (intentará eliminar de Auth y Firestore)
-      final success = await AuthService.deleteUserAsAdmin(
+      // Usar SessionManager para eliminar el usuario (intentará eliminar de Auth y Firestore)
+      final success = await SessionManager().deleteUserAsAdmin(
         userId: userId,
-        userEmail: userEmail,
       );
 
       if (success) {
@@ -226,7 +224,7 @@ class AdminService {
     String? initialInstructions,
   }) async {
     try {
-      final currentUser = AuthService.currentUser;
+      final currentUser = SessionManager().currentUser;
       if (currentUser == null) return null;
 
       final currentUserDoc =
@@ -309,7 +307,7 @@ class AdminService {
   /// Obtener estadísticas del sistema (solo para administradores)
   static Future<Map<String, dynamic>?> getSystemStats() async {
     try {
-      final currentUser = AuthService.currentUser;
+      final currentUser = SessionManager().currentUser;
       if (currentUser == null) return null;
 
       final currentUserDoc =
@@ -358,7 +356,7 @@ class AdminService {
   /// Obtener tareas asignadas por el admin
   static Future<List<TaskModel>> getAssignedTasks() async {
     try {
-      final currentUser = AuthService.currentUser;
+      final currentUser = SessionManager().currentUser;
       if (currentUser == null) return [];
 
       final currentUserDoc =
@@ -387,7 +385,7 @@ class AdminService {
   /// Stream de tareas asignadas por el admin (actualizaciones en tiempo real)
   static Stream<List<TaskModel>> streamAssignedTasks() {
     try {
-      final currentUser = AuthService.currentUser;
+      final currentUser = SessionManager().currentUser;
       if (currentUser == null) return const Stream.empty();
 
       final snapshots = _firestore
@@ -418,7 +416,7 @@ class AdminService {
     try {
     print('🔄 Actualizando tarea: $taskId');
 
-    final currentUser = AuthService.currentUser;
+    final currentUser = SessionManager().currentUser;
     if (currentUser == null) return false;
     final currentUserDoc = await _firestore.collection('users').doc(currentUser.uid).get();
 
@@ -487,7 +485,7 @@ class AdminService {
     try {
       print('🔄 Reasignando tarea: $taskId -> $newAssignedToUserId');
 
-      final currentUser = AuthService.currentUser;
+      final currentUser = SessionManager().currentUser;
       if (currentUser == null) return false;
       final currentUserDoc = await _firestore.collection('users').doc(currentUser.uid).get();
 
@@ -554,7 +552,7 @@ class AdminService {
 
       // Registrar evento de eliminación usando HistoryService
       try {
-        final currentUser = AuthService.currentUser;
+        final currentUser = SessionManager().currentUser;
         String? actorUid = currentUser?.uid;
         String? actorRole;
         if (currentUser != null) {
@@ -586,3 +584,4 @@ class AdminService {
     }
   }
 }
+

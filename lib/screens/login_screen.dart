@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
+import '../services/auth/session_manager.dart';
 import '../models/user_model.dart';
 import '../utils/validators.dart';
 import '../utils/ui_helper.dart';
@@ -65,7 +65,7 @@ class _LoginScreenState extends State<LoginScreen>
 
       // Usar login por email y contraseña (si el usuario ingresó solo nombre,
       // se concatena @gmail.com automáticamente)
-      final UserModel? user = await AuthService.signInWithEmailAndPassword(
+      final UserModel? user = await SessionManager().signInWithEmailAndPassword(
         email: email,
         password: _passwordController.text.trim(),
       );

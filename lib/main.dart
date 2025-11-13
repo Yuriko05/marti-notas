@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:marti_notas/firebase_options.dart';
 import 'package:marti_notas/screens/home_screen.dart';
 import 'package:marti_notas/screens/login_screen.dart';
-import 'package:marti_notas/services/auth_service.dart';
+import 'package:marti_notas/services/auth/session_manager.dart';
 import 'package:marti_notas/services/notification_service.dart';
 import 'package:marti_notas/models/user_model.dart';
 import 'package:marti_notas/providers/auth_provider.dart' as app_providers;
@@ -59,7 +59,7 @@ class MyApp extends StatelessWidget {
         darkTheme: AppTheme.darkTheme,
         themeMode: ThemeMode.light,
         home: StreamBuilder<User?>(
-          stream: AuthService.authStateChanges,
+          stream: SessionManager().authStateChanges,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const AppLoadingIndicator(
@@ -69,7 +69,7 @@ class MyApp extends StatelessWidget {
             if (snapshot.hasData) {
               // Si el usuario está autenticado, obtener sus datos y navegar según rol
               return FutureBuilder<UserModel?>(
-                future: AuthService.getCurrentUserProfile(),
+                future: SessionManager().getCurrentUserProfile(),
                 builder: (context, userSnapshot) {
                   if (userSnapshot.connectionState == ConnectionState.waiting) {
                     return const AppLoadingIndicator(
@@ -80,7 +80,7 @@ class MyApp extends StatelessWidget {
                   final UserModel? user = userSnapshot.data;
                   if (user == null) {
                     // Si hay error obteniendo el usuario, cerrar sesión
-                    AuthService.signOut();
+                    SessionManager().signOut();
                     return const LoginScreen();
                   }
 
